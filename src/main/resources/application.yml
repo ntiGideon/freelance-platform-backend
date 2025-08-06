@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: AWS Microservice Project Group2
+  security:
+    oauth2:
+      client:
+        registration:
+          cognito:
+            client-id: ${AWS_COGNITO_ID}
+            client-secret: ${AWS_COGNITO_SECRET}
+            scope:
+              - email
+              - openid
+              - phone
+            redirect-uri: ${AWS_COGNITO_REDIRECT_URL}
+        provider:
+          cognito:
+            issuer-uri: ${AWS_COGNITO_ISSUER_URI}
+            user-name-attribute: username
+server:
+  port: 9600
+
+# AWS properties
+aws:
+  access-key: ${AWS_ACCESS_KEY}
+  secret-key: ${AWS_SECRET_KEY}
+  region: ${AWS_REGION}
+  endpoint: ${AWS_ENDPOINT}
