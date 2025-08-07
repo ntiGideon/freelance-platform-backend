@@ -9,6 +9,10 @@ env:
   SAM_TEMPLATE: template.yaml
   REGION: eu-central-1
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
