@@ -29,23 +29,3 @@ warm_containers = "EAGER"
 
 [default.local_start_lambda.parameters]
 warm_containers = "EAGER"
-
-# Development environment
-[dev.global.parameters]
-stack_name = "freelance-platform-dev"
-
-[dev.deploy.parameters]
-capabilities = "CAPABILITY_IAM"
-confirm_changeset = true
-resolve_s3 = true
-parameter_overrides = "Environment=dev"
-
-# Production environment
-[prod.global.parameters]
-stack_name = "freelance-platform-prod"
-
-[prod.deploy.parameters]
-capabilities = "CAPABILITY_IAM"
-confirm_changeset = true
-resolve_s3 = true
-parameter_overrides = "Environment=prod"
