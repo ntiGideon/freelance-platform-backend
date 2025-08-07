@@ -24,7 +24,18 @@ Globals:
         ENVIRONMENT: !Ref Environment
 
 Resources:
-  # Add your AWS resources here
+  FreelancePlatformApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${Environment}-freelance-platform-api"
+      Description: Freelance Platform REST API
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
 
 Outputs:
-  # Add your outputs here
+  FreelancePlatformApiId:
+    Description: "API Gateway REST API ID"
+    Value: !Ref FreelancePlatformApi
+    Export:
+      Name: !Sub "${Environment}-freelance-api-id"
