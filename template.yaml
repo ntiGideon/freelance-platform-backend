@@ -24,19 +24,7 @@ Globals:
         ENVIRONMENT: !Ref Environment
 
 Resources:
-  FreelancePlatformApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      Name: !Sub "${Environment}-freelance-platform-api"
-      StageName: !Ref Environment
-      Cors:
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-        AllowOrigin: "'*'"
+  # Add your AWS resources here
 
 Outputs:
-  FreelancePlatformApiUrl:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/"
-    Export:
-      Name: !Sub "${Environment}-freelance-api-url"
+  # Add your outputs here
