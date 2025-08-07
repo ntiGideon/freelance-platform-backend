@@ -50,7 +50,7 @@ jobs:
             --stack-name freelance-platform-dev \
             --parameter-overrides Environment=dev \
             --region ${{ env.REGION }} \
-            --confirm-changeset \
+            --no-confirm-changeset \
             --no-fail-on-empty-changeset \
             --capabilities CAPABILITY_IAM \
             --role-arn ${{ secrets.DEV_CLOUDFORMATION_ROLE }} \
