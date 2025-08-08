@@ -2,7 +2,7 @@ name: SAM Pipeline - Dev
 
 on:
   push:
-    branches: [main, develop]
+    branches: [develop]
   workflow_dispatch:
 
 env:
