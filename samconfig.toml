@@ -3,7 +3,7 @@
 version = 0.1
 
 [default.global.parameters]
-stack_name = "freelance-platform-auth-service-dev"
+stack_name = "freelance-platform-dev"
 
 [default.build.parameters]
 cached = true
