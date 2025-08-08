@@ -1,4 +1,4 @@
-name: SAM Pipeline - Dev
+name: Auth Service SAM Pipeline - Develop
 
 on:
   push:
@@ -47,7 +47,7 @@ jobs:
       - name: Deploy to Dev
         run: |
           sam deploy \
-            --stack-name freelance-platform-dev \
+            --stack-name freelance-platform-auth-service-dev \
             --parameter-overrides Environment=dev \
             --region ${{ env.REGION }} \
             --no-confirm-changeset \
