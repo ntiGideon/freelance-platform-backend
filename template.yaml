@@ -2,7 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   Freelance Job/Task Platform
- 
   Serverless freelance platform base template for team development.
 
 Parameters:
@@ -33,6 +32,14 @@ Resources:
         Types:
           - REGIONAL
 
+  # Nested stack for Auth Service
+  AuthServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./auth-service/template.yaml
+      Parameters:
+        Environment: !Ref Environment
+
 Outputs:
   FreelancePlatformApiId:
     Description: "API Gateway REST API ID"
@@ -45,3 +52,15 @@ Outputs:
     Value: !GetAtt FreelancePlatformApi.RootResourceId
     Export:
       Name: !Sub "${Environment}-freelance-api-root-id"
+
+  AuthUserPoolId:
+    Description: "Cognito User Pool Id from Auth Service"
+    Value: !GetAtt AuthServiceStack.Outputs.UserPoolId
+    Export:
+      Name: !Sub "${Environment}-auth-user-pool-id"
+
+  AuthUserPoolClientId:
+    Description: "Cognito User Pool Client Id from Auth Service"
+    Value: !GetAtt AuthServiceStack.Outputs.UserPoolClientId
+    Export:
+      Name: !Sub "${Environment}-auth-user-pool-client-id"

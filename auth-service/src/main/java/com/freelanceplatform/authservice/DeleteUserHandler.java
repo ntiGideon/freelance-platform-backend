@@ -17,32 +17,40 @@ public class DeleteUserHandler implements RequestHandler<Map<String, String>, St
     @Override
     public String handleRequest (Map<String, String> event, Context context) {
         String userId = event.get( "userId" );
-        if ( userId == null || userId.isEmpty() ) throw new IllegalArgumentException( "UserId is required" );
         
-        // Delete from Users table
-        Map<String, AttributeValue> userKey = new HashMap<>();
-        userKey.put( "userId", AttributeValue.builder().s( userId ).build() );
+        if ( userId == null || userId.trim().isEmpty() ) {
+            String errorMsg = "Invalid input: userId is required";
+            context.getLogger().log( errorMsg );
+            throw new IllegalArgumentException( errorMsg );
+        }
         
-        DeleteItemRequest deleteUserRequest = DeleteItemRequest.builder()
-                .tableName( USERS_TABLE )
-                .key( userKey )
+        try {
+            // Delete user data
+            deleteItemFromTable( USERS_TABLE, userId, context );
+            
+            // Delete account data
+            deleteItemFromTable( ACCOUNTS_TABLE, userId, context );
+            
+            context.getLogger().log( "Successfully deleted user and account data for userId: " + userId );
+            return "Deleted user and account data for userId: " + userId;
+            
+        } catch ( Exception e ) {
+            String err = "Failed to delete user/account data: " + e.getMessage();
+            context.getLogger().log( err );
+            throw e;
+        }
+    }
+    
+    private void deleteItemFromTable (String tableName, String keyValue, Context context) {
+        Map<String, AttributeValue> key = new HashMap<>();
+        key.put( "userId", AttributeValue.builder().s( keyValue ).build() );
+        
+        DeleteItemRequest deleteRequest = DeleteItemRequest.builder()
+                .tableName( tableName )
+                .key( key )
                 .build();
         
-        dynamoDbClient.deleteItem( deleteUserRequest );
-        
-        // Delete from Accounts table
-        Map<String, AttributeValue> accountKey = new HashMap<>();
-        accountKey.put( "userId", AttributeValue.builder().s( userId ).build() );
-        
-        DeleteItemRequest deleteAccountRequest = DeleteItemRequest.builder()
-                .tableName( ACCOUNTS_TABLE )
-                .key( accountKey )
-                .build();
-        
-        dynamoDbClient.deleteItem( deleteAccountRequest );
-        
-        context.getLogger().log( "Deleted user and account data for userId: " + userId );
-        
-        return "User and account deleted for userId: " + userId;
+        dynamoDbClient.deleteItem( deleteRequest );
+        context.getLogger().log( "Deleted item with key " + keyValue + " from table " + tableName );
     }
 }
