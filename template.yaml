@@ -39,3 +39,9 @@ Outputs:
     Value: !Ref FreelancePlatformApi
     Export:
       Name: !Sub "${Environment}-freelance-api-id"
+
+  FreelancePlatformApiRootResourceId:
+    Description: "API Gateway Root Resource ID"
+    Value: !GetAtt FreelancePlatformApi.RootResourceId
+    Export:
+      Name: !Sub "${Environment}-freelance-api-root-id"
