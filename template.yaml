@@ -59,7 +59,7 @@ Resources:
           AttributeDataType: String
           Mutable: true
           Required: true
-        - Name: preferred_job_categories
+        - Name: job_categories
           AttributeDataType: String
           Mutable: true
         - Name: telephone

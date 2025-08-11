@@ -34,7 +34,8 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         item.put("email", AttributeValue.builder().s(userAttributes.get("email")).build());
         item.put("firstName", AttributeValue.builder().s(userAttributes.getOrDefault("given_name", "")).build());
         item.put("lastName", AttributeValue.builder().s(userAttributes.getOrDefault("family_name", "")).build());
-        item.put("preferredJobCategories", AttributeValue.builder().ss(userAttributes.getOrDefault("custom:preferred_job_categories", "").split(",")).build());
+        item.put("jobCategories", AttributeValue.builder().ss(userAttributes.getOrDefault("custom:job_categories",
+                "").split(",")).build());
         item.put("phoneNumber", AttributeValue.builder().s(userAttributes.getOrDefault("phone_number", "")).build());
         
         try {
