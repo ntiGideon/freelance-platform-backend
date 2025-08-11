@@ -20,6 +20,15 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+
+        # Cache .m2 (Maven) dependencies for Java Lambda functions
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
       
       - uses: actions/setup-java@v4
         with:
@@ -42,7 +51,7 @@ jobs:
         run: sam validate --template ${{ env.SAM_TEMPLATE }}
 
       - name: Build SAM application
-        run: sam build --template ${{ env.SAM_TEMPLATE }} --use-container
+        run: sam build --template ${{ env.SAM_TEMPLATE }} --use-container --parallel --cached
 
       - name: Deploy to Dev
         run: |
