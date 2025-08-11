@@ -33,6 +33,50 @@ Resources:
           - REGIONAL
 
   ###################################
+  # DynamoDB Tables
+  ###################################
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "UsersTable-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
+  AccountsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "AccountsTable-${Environment}"
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: accountNumber
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: AccountNumberIndex
+          KeySchema:
+            - AttributeName: accountNumber
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  ###################################
+  # SNS Topic for Job Alerts
+  ###################################
+  JobAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "JobAlertsTopic-${Environment}"
+
+  ###################################
   # Cognito User Pool, Groups(Roles) and Client
   ###################################
   UserPool:
@@ -92,50 +136,6 @@ Resources:
       Description: "Platform administrators"
 
   ###################################
-  # SNS Topic for Job Alerts
-  ###################################
-  JobAlertsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !Sub "JobAlertsTopic-${Environment}"
-
-  ###################################
-  # DynamoDB Tables
-  ###################################
-  UsersTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub "UsersTable-${Environment}"
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: userId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: userId
-          KeyType: HASH
-
-  AccountsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub "AccountsTable-${Environment}"
-      AttributeDefinitions:
-        - AttributeName: userId
-          AttributeType: S
-        - AttributeName: accountNumber
-          AttributeType: S
-      KeySchema:
-        - AttributeName: userId
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
-      GlobalSecondaryIndexes:
-        - IndexName: AccountNumberIndex
-          KeySchema:
-            - AttributeName: accountNumber
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-
-  ###################################
   # Lambda Functions
   ###################################
   PostConfirmationLambda:
@@ -154,14 +154,6 @@ Resources:
         Variables:
           STATE_MACHINE_ARN: !Ref UserOnboardingStateMachine
           ENVIRONMENT: !Ref Environment
-
-  PostConfirmationLambdaPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref PostConfirmationLambda
-      Action: lambda:InvokeFunction
-      Principal: cognito-idp.amazonaws.com
-      SourceArn: !GetAtt UserPool.Arn
 
   GenerateUserIdLambda:
     Type: AWS::Serverless::Function
