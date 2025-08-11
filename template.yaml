@@ -18,8 +18,6 @@ Globals:
     Runtime: java17
     MemorySize: 1024
     Timeout: 30
-    Architectures:
-      - arm64
 
 Resources:
   ###################################
