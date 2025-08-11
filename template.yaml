@@ -48,21 +48,18 @@ Resources:
           AttributeDataType: String
           Mutable: false
           Required: true
-        - Name: firstname
+        - Name: given_name
           AttributeDataType: String
           Mutable: true
           Required: true
-        - Name: middlename
-          AttributeDataType: String
-          Mutable: true
-        - Name: lastname
+        - Name: family_name
           AttributeDataType: String
           Mutable: true
           Required: true
         - Name: job_categories
           AttributeDataType: String
           Mutable: true
-        - Name: telephone
+        - Name: phone_number
           AttributeDataType: String
           Mutable: true
       LambdaConfig:
