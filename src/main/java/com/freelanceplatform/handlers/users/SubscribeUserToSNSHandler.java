@@ -1,7 +1,9 @@
-package com.freelanceplatform.authservice;
+package com.freelanceplatform.handlers.users;
 
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.SetSubscriptionAttributesRequest;
 import software.amazon.awssdk.services.sns.model.SubscribeRequest;
@@ -11,10 +13,12 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Object>, Object> {
     
     private final SnsClient snsClient = SnsClient.create();
     private final String topicArn = System.getenv("SNS_TOPIC_ARN");
+    private final LambdaLogger logger;
     
     @Override
     public Object handleRequest(Map<String, Object> input, Context context) {
@@ -50,7 +54,7 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
             snsClient.setSubscriptionAttributes(attrRequest);
         }
         
-        context.getLogger().log("Subscribed " + email + " with filter policy: " + preferredCategoriesCsv);
+        logger.log("Subscribed " + email + " with filter policy: " + preferredCategoriesCsv);
         
         return input;
     }

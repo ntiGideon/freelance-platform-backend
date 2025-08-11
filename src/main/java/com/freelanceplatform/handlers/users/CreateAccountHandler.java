@@ -1,8 +1,10 @@
-package com.freelanceplatform.authservice;
+package com.freelanceplatform.handlers.users;
 
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.freelanceplatform.authservice.utils.AccountNumberGenerator;
+import com.freelanceplatform.utils.AccountNumberGenerator;
+import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -10,8 +12,9 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import java.util.HashMap;
 import java.util.Map;
 
+@RequiredArgsConstructor
 public class CreateAccountHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
-    
+    private final LambdaLogger logger;
     private final DynamoDbClient dynamoDbClient = DynamoDbClient.create();
     private final String ACCOUNTS_TABLE = System.getenv( "ACCOUNTS_TABLE" );
     
@@ -43,9 +46,9 @@ public class CreateAccountHandler implements RequestHandler<Map<String, Object>,
             
             dynamoDbClient.putItem( request );
             
-            context.getLogger().log( "Created account " + accountNumber + " for userId: " + userId );
+            logger.log( "Created account " + accountNumber + " for userId " + userId );
         } catch ( Exception e ) {
-            context.getLogger().log( "Failed to create account: " + e.getMessage() );
+            logger.log( "Failed to create account\n " + e.getMessage() );
             throw new RuntimeException( e );
         }
         

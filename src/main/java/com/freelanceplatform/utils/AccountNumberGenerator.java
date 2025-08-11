@@ -1,4 +1,4 @@
-package com.freelanceplatform.authservice.utils;
+package com.freelanceplatform.utils;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
