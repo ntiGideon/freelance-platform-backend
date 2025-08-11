@@ -1,7 +1,9 @@
-package com.freelanceplatform.authservice;
+package com.freelanceplatform.handlers.users;
 
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -9,10 +11,12 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import java.util.HashMap;
 import java.util.Map;
 
+@RequiredArgsConstructor
 public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
     
     private final DynamoDbClient dynamoDbClient = DynamoDbClient.create();
     private final String USERS_TABLE = System.getenv("USERS_TABLE");
+    private final LambdaLogger logger;
     
     @Override
     public Map<String, Object> handleRequest(Map<String, Object> input, Context context) {
@@ -41,9 +45,9 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
             
             dynamoDbClient.putItem(request);
             
-            context.getLogger().log("Saved user data for userId: " + userId);
+            logger.log("Saved user data for userId: " + userId);
         } catch ( Exception e ) {
-            context.getLogger().log( "Failed to save user data: " + e.getMessage() );
+            logger.log( "Failed to save user data: " + e.getMessage() );
             throw new RuntimeException( e );
         }
         
