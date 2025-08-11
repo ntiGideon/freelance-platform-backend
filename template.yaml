@@ -33,7 +33,7 @@ Resources:
           - REGIONAL
 
   ###################################
-  # Cognito User Pool and Client
+  # Cognito User Pool, Groups(Roles) and Client
   ###################################
   UserPool:
     Type: AWS::Cognito::UserPool
@@ -77,6 +77,23 @@ Resources:
         - ALLOW_USER_SRP_AUTH
       PreventUserExistenceErrors: ENABLED
 
+  UserGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: USER
+      UserPoolId: !Ref UserPool
+      Description: "Regular users of the platform"
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: ADMIN
+      UserPoolId: !Ref UserPool
+      Description: "Platform administrators"
+
+  ###################################
+  # SNS Topic for Job Alerts
+  ###################################
   JobAlertsTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -136,6 +153,7 @@ Resources:
       Environment:
         Variables:
           STATE_MACHINE_ARN: !Ref UserOnboardingStateMachine
+          USER_POOL_ID: !Ref UserPool
           ENVIRONMENT: !Ref Environment
 
   GenerateUserIdLambda:
@@ -214,7 +232,6 @@ Resources:
   ###################################
   # Step Functions
   ###################################
-
   UserOnboardingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
