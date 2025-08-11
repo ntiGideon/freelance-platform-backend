@@ -6,23 +6,22 @@ import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.CognitoUserPoolPostConfirmationEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.services.sfn.SfnClient;
 import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
 
 import java.util.HashMap;
 import java.util.Map;
 
-@RequiredArgsConstructor
 public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPostConfirmationEvent, Object> {
     
     private static final String STATE_MACHINE_ARN = System.getenv( "STATE_MACHINE_ARN" );
     private final SfnClient sfnClient = SfnClient.create();
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final LambdaLogger logger;
+    
     
     @Override
     public Object handleRequest (CognitoUserPoolPostConfirmationEvent event, Context context) {
+        LambdaLogger logger = context.getLogger();
         if ( "PostConfirmation_ConfirmSignUp".equals( event.getTriggerSource() ) ) {
             if ( STATE_MACHINE_ARN == null || STATE_MACHINE_ARN.isEmpty() ) {
                 logger.log( "Step Function ARN environment variable is not set" );

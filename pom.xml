@@ -146,14 +146,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.38</version>
-            <scope>provided</scope>
-        </dependency>
-
         <!-- JUnit for tests -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

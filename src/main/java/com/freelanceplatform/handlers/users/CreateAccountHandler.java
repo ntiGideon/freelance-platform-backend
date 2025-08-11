@@ -4,7 +4,6 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.freelanceplatform.utils.AccountNumberGenerator;
-import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -12,14 +11,13 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import java.util.HashMap;
 import java.util.Map;
 
-@RequiredArgsConstructor
 public class CreateAccountHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
-    private final LambdaLogger logger;
     private final DynamoDbClient dynamoDbClient = DynamoDbClient.create();
     private final String ACCOUNTS_TABLE = System.getenv( "ACCOUNTS_TABLE" );
     
     @Override
     public Map<String, Object> handleRequest (Map<String, Object> input, Context context) {
+        LambdaLogger logger = context.getLogger();
         String userId = (String) input.get( "userId" );
         String firstname = (String) input.get( "firstname" );
         String lastname = (String) input.get( "lastname" );
