@@ -21,23 +21,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-        # Cache .m2 (Maven) dependencies for Java Lambda functions
-      - name: Cache Maven repository
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-      
       - uses: actions/setup-java@v4
         with:
-          distribution: 'corretto'
+          distribution: 'temurin'
           java-version: 17
-      
+          cache: 'maven'
+
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
+
+      - name: Cache Maven & SAM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            .aws-sam/cache
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Pre-download Maven dependencies
+        run: mvn dependency:go-offline -B
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
