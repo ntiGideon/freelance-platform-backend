@@ -13,6 +13,7 @@ import java.util.Map;
 
 public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
     
+    public static final String USER = "USER";
     private final DynamoDbClient dynamoDbClient = DynamoDbClient.create();
     private final String USERS_TABLE = System.getenv( "USERS_TABLE" );
     
@@ -27,15 +28,25 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         
         if ( userAttributes == null ) throw new IllegalArgumentException( "userAttributes missing in input" );
         
+        // Get role from input (set by AssignUserRole step)
+        String role = (String) input.getOrDefault( "role", USER );
+        
         // Prepare item to put into DynamoDB
         Map<String, AttributeValue> item = new HashMap<>();
         item.put( "userId", AttributeValue.builder().s( userId ).build() );
         item.put( "email", AttributeValue.builder().s( userAttributes.get( "email" ) ).build() );
         item.put( "firstName", AttributeValue.builder().s( userAttributes.getOrDefault( "given_name", "" ) ).build() );
         item.put( "lastName", AttributeValue.builder().s( userAttributes.getOrDefault( "family_name", "" ) ).build() );
-        item.put( "jobCategories", AttributeValue.builder().ss( userAttributes.getOrDefault( "custom:job_categories",
-                "" ).split( "," ) ).build() );
         item.put( "phoneNumber", AttributeValue.builder().s( userAttributes.getOrDefault( "phone_number", "" ) ).build() );
+        item.put( "role", AttributeValue.builder().s( role ).build() );
+        
+        // Handle job categories safely
+        String jobCategoriesStr = userAttributes.getOrDefault( "custom:job_categories", "" );
+        if ( !jobCategoriesStr.isEmpty() ) {
+            item.put( "jobCategories", AttributeValue.builder().ss( jobCategoriesStr.split( "," ) ).build() );
+        } else {
+            item.put( "jobCategories", AttributeValue.builder().ss().build() ); // Empty string set
+        }
         
         try {
             PutItemRequest request = PutItemRequest.builder()
@@ -45,12 +56,12 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
             
             dynamoDbClient.putItem( request );
             
-            logger.log( "Saved user data for userId: " + userId );
+            logger.log( "Successfully saved user data for userId: " + userId );
         } catch ( Exception e ) {
             logger.log( "Failed to save user data: " + e.getMessage() );
             throw new RuntimeException( e );
         }
         
-        return input; // pass input forward
+        return input;
     }
 }

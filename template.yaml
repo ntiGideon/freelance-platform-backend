@@ -153,8 +153,15 @@ Resources:
       Environment:
         Variables:
           STATE_MACHINE_ARN: !Ref UserOnboardingStateMachine
-          USER_POOL_ID: !Ref UserPool
           ENVIRONMENT: !Ref Environment
+
+  PostConfirmationLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PostConfirmationLambda
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
 
   GenerateUserIdLambda:
     Type: AWS::Serverless::Function
@@ -164,6 +171,24 @@ Resources:
       Handler: com.freelanceplatform.handlers.users.GenerateUserIdHandler::handleRequest
       Environment:
         Variables:
+          ENVIRONMENT: !Ref Environment
+
+  AssignUserRoleLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "AssignUserRoleLambda-${Environment}"
+      CodeUri: .
+      Handler: com.freelanceplatform.handlers.users.AssignUserRoleHandler::handleRequest
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
           ENVIRONMENT: !Ref Environment
 
   SaveUserDataLambda:
@@ -247,6 +272,10 @@ Resources:
           SaveUserData:
             Type: Task
             Resource: !GetAtt SaveUserDataLambda.Arn
+            Next: AssignUserRole
+          AssignUserRole:
+            Type: Task
+            Resource: !GetAtt AssignUserRoleLambda.Arn
             Next: CreateAccount
           CreateAccount:
             Type: Task
@@ -261,6 +290,8 @@ Resources:
             FunctionName: !Ref GenerateUserIdLambda
         - LambdaInvokePolicy:
             FunctionName: !Ref SaveUserDataLambda
+        - LambdaInvokePolicy:
+            FunctionName: !Ref AssignUserRoleLambda
         - LambdaInvokePolicy:
             FunctionName: !Ref CreateAccountLambda
         - LambdaInvokePolicy:
