@@ -321,6 +321,12 @@ Outputs:
     Export:
       Name: !Sub "${Environment}-freelance-api-root-id"
 
+  FreelancePlatformApiUrl:
+    Description: "API Gateway URL for the Freelance Platform"
+    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "${Environment}-freelance-api-url"
+
   UserPoolId:
     Description: "Cognito User Pool Id"
     Value: !Ref UserPool
