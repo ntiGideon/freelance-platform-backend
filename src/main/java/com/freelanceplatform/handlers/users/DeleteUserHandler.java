@@ -4,7 +4,6 @@ package com.freelanceplatform.handlers.users;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
@@ -12,15 +11,15 @@ import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import java.util.HashMap;
 import java.util.Map;
 
-@RequiredArgsConstructor
 public class DeleteUserHandler implements RequestHandler<Map<String, String>, String> {
     private final DynamoDbClient dynamoDbClient = DynamoDbClient.create();
     private final String USERS_TABLE = System.getenv( "USERS_TABLE" );
     private final String ACCOUNTS_TABLE = System.getenv( "ACCOUNTS_TABLE" );
-    private final LambdaLogger logger;
+    
     
     @Override
     public String handleRequest (Map<String, String> event, Context context) {
+        LambdaLogger logger = context.getLogger();
         String userId = event.get( "userId" );
         
         if ( userId == null || userId.trim().isEmpty() ) {
@@ -31,10 +30,10 @@ public class DeleteUserHandler implements RequestHandler<Map<String, String>, St
         
         try {
             // Delete user data
-            deleteItemFromTable( USERS_TABLE, userId );
+            deleteItemFromTable( USERS_TABLE, userId, logger );
             
             // Delete account data
-            deleteItemFromTable( ACCOUNTS_TABLE, userId );
+            deleteItemFromTable( ACCOUNTS_TABLE, userId, logger );
             
             logger.log( "Successfully deleted user and account data for userId: " + userId );
             return "Deleted user and account data for userId: " + userId;
@@ -46,7 +45,7 @@ public class DeleteUserHandler implements RequestHandler<Map<String, String>, St
         }
     }
     
-    private void deleteItemFromTable (String tableName, String keyValue) {
+    private void deleteItemFromTable (String tableName, String keyValue, LambdaLogger logger) {
         Map<String, AttributeValue> key = new HashMap<>();
         key.put( "userId", AttributeValue.builder().s( keyValue ).build() );
         
