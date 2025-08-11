@@ -1,0 +1,339 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  Auth Service for Freelance Platform Backend
+  - Java 17 Lambdas for user onboarding and deletion cleanup
+  - Cognito User Pool with PostConfirmation trigger
+  - Step Functions orchestrating onboarding and deletion workflows
+  - DynamoDB tables for Users and Accounts
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name (dev or prod)
+Globals:
+  Function:
+    Runtime: java17
+    MemorySize: 1024
+    Timeout: 30
+    Architectures:
+      - arm64
+
+Resources:
+  ###################################
+  # Cognito User Pool and Client
+  ###################################
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "FreelancePlatformUserPool-${Environment}"
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+        - Name: firstname
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: middlename
+          AttributeDataType: String
+          Mutable: true
+        - Name: lastname
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: preferred_job_categories
+          AttributeDataType: String
+          Mutable: true
+        - Name: telephone
+          AttributeDataType: String
+          Mutable: true
+      LambdaConfig:
+        PostConfirmation: !GetAtt PostConfirmationLambda.Arn
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "FreelancePlatformUserPoolClient-${Environment}"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  JobAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "JobAlertsTopic-${Environment}"
+
+  ###################################
+  # DynamoDB Tables
+  ###################################
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "UsersTable-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
+  AccountsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "AccountsTable-${Environment}"
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: accountNumber
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: AccountNumberIndex
+          KeySchema:
+            - AttributeName: accountNumber
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  ###################################
+  # Lambda Functions
+  ###################################
+  PostConfirmationLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "PostConfirmationLambda-${Environment}"
+      CodeUri: .
+      Handler: com.freelanceplatform.authservice.PostConfirmationHandler::handleRequest
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Ref UserOnboardingStateMachine
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Ref UserOnboardingStateMachine
+          ENVIRONMENT: !Ref Environment
+
+  GenerateUserIdLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "GenerateUserIdLambda-${Environment}"
+      CodeUri: .
+      Handler: com.freelanceplatform.authservice.GenerateUserIdHandler::handleRequest
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+
+  SaveUserDataLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "SaveUserDataLambda-${Environment}"
+      CodeUri: .
+      Handler: com.freelanceplatform.authservice.SaveUserDataHandler::handleRequest
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Environment:
+        Variables:
+          USERS_TABLE: !Ref UsersTable
+          ENVIRONMENT: !Ref Environment
+
+  CreateAccountLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "CreateAccountLambda-${Environment}"
+      CodeUri: .
+      Handler: com.freelanceplatform.authservice.CreateAccountHandler::handleRequest
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccountsTable
+      Environment:
+        Variables:
+          ACCOUNTS_TABLE: !Ref AccountsTable
+          ENVIRONMENT: !Ref Environment
+
+  SubscribeUserToSNSLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "SubscribeUserToSNSLambda-${Environment}"
+      CodeUri: .
+      Handler: com.freelanceplatform.authservice.SubscribeUserToSNSHandler::handleRequest
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Subscribe
+                - sns:SetSubscriptionAttributes
+              Resource: !Ref JobAlertsTopic
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref JobAlertsTopic
+          ENVIRONMENT: !Ref Environment
+
+  DeleteUserHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "DeleteUserHandler-${Environment}"
+      CodeUri: .
+      Handler: com.freelanceplatform.authservice.DeleteUserHandler::handleRequest
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccountsTable
+      Environment:
+        Variables:
+          USERS_TABLE: !Ref UsersTable
+          ACCOUNTS_TABLE: !Ref AccountsTable
+          ENVIRONMENT: !Ref Environment
+
+  ###################################
+  # Step Functions
+  ###################################
+
+  UserOnboardingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub "UserOnboardingWorkflow-${Environment}"
+      Definition:
+        Comment: "User onboarding after Cognito signup"
+        StartAt: GenerateUserId
+        States:
+          GenerateUserId:
+            Type: Task
+            Resource: !GetAtt GenerateUserIdLambda.Arn
+            Next: SaveUserData
+          SaveUserData:
+            Type: Task
+            Resource: !GetAtt SaveUserDataLambda.Arn
+            Next: CreateAccount
+          CreateAccount:
+            Type: Task
+            Resource: !GetAtt CreateAccountLambda.Arn
+            Next: SubscribeUserToSNS
+          SubscribeUserToSNS:
+            Type: Task
+            Resource: !GetAtt SubscribeUserToSNSLambda.Arn
+            End: true
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref GenerateUserIdLambda
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SaveUserDataLambda
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CreateAccountLambda
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SubscribeUserToSNSLambda
+
+  UserDeletionCleanupStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub "UserDeletionCleanupWorkflow-${Environment}"
+      Definition:
+        Comment: "User deletion cleanup after Cognito user removal"
+        StartAt: DeleteUserDataAndAccount
+        States:
+          DeleteUserDataAndAccount:
+            Type: Task
+            Resource: !GetAtt DeleteUserHandler.Arn
+            End: true
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref DeleteUserHandler
+
+  ###################################
+  # EventBridge Rule for User Deletion Detection
+  ###################################
+  UserDeletionEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Trigger cleanup Step Function on Cognito user deletion"
+      EventPattern:
+        source:
+          - aws.cognito-idp
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          eventName:
+            - AdminDeleteUser
+            - DeleteUser
+      Targets:
+        - Arn: !Ref UserDeletionCleanupStateMachine
+          Id: "UserDeletionStepFunctionTarget"
+          RoleArn: !GetAtt EventBridgeInvokeStepFunctionRole.Arn
+
+  EventBridgeInvokeStepFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeStepFunctionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource:
+                  - !Ref UserDeletionCleanupStateMachine
+                  - !Ref UserOnboardingStateMachine
+
+Outputs:
+  UserPoolId:
+    Description: "Cognito User Pool Id"
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub "FreelancePlatform-UserPoolId-${Environment}"
+
+  UserPoolClientId:
+    Description: "Cognito User Pool Client Id"
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub "FreelancePlatform-UserPoolClientId-${Environment}"
+
+  UsersTableName:
+    Description: "Users DynamoDB Table Name"
+    Value: !Ref UsersTable
+    Export:
+      Name: !Sub "FreelancePlatform-UsersTableName-${Environment}"
+
+  AccountsTableName:
+    Description: "Accounts DynamoDB Table Name"
+    Value: !Ref AccountsTable
+    Export:
+      Name: !Sub "FreelancePlatform-AccountsTableName-${Environment}"
+
+  UserOnboardingStateMachineArn:
+    Description: "ARN of User Onboarding Step Function"
+    Value: !Ref UserOnboardingStateMachine
+    Export:
+      Name: !Sub "FreelancePlatform-UserOnboardingSFNArn-${Environment}"
+
+  UserDeletionCleanupStateMachineArn:
+    Description: "ARN of User Deletion Cleanup Step Function"
+    Value: !Ref UserDeletionCleanupStateMachine
+    Export:
+      Name: !Sub "FreelancePlatform-UserDeletionCleanupSFNArn-${Environment}"

@@ -1,4 +1,4 @@
-name: SAM Pipeline - Dev
+name: SAM Pipeline - Develop
 
 on:
   push:
