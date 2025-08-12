@@ -14,11 +14,6 @@ Parameters:
       - prod
     Description: Environment name (dev or prod)
 
-  CallBackUrl:
-    Type: String
-    Description: Callback URL for Cognito User Pool
-    Default: "https://www.example.com/"
-
 Globals:
   Function:
     Runtime: java17
@@ -139,21 +134,7 @@ Resources:
         - ALLOW_USER_SRP_AUTH
       SupportedIdentityProviders:
         - COGNITO
-      CallbackURLs:
-        - !Ref CallBackUrl
-      AllowedOAuthFlows:
-        - code
-      AllowedOAuthScopes:
-        - email
-        - openid
-        - profile
       PreventUserExistenceErrors: ENABLED
-
-  UserPoolDomain:
-    Type: AWS::Cognito::UserPoolDomain
-    Properties:
-      Domain: !Sub "freelance-platform-${Environment}"
-      UserPoolId: !Ref UserPool
 
   UserGroup:
     Type: AWS::Cognito::UserPoolGroup
@@ -409,10 +390,6 @@ Outputs:
     Value: !Ref UserPoolClient
     Export:
       Name: !Sub "FreelancePlatform-UserPoolClientId-${Environment}"
-
-  HostedUri:
-    Description: "Cognito Hosted UI URL"
-    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=token&scope=email+openid+profile&redirect_uri=https://www.example.com/"
 
   UsersTableName:
     Description: "Users DynamoDB Table Name"
