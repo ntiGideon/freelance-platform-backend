@@ -49,7 +49,6 @@ public class CreateAccountHandler implements RequestHandler<Map<String, Object>,
             logger.log( "Failed to create account\n " + e.getMessage() );
             throw new RuntimeException( e );
         }
-        
         return input;
     }
     
