@@ -6,6 +6,8 @@ import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.CognitoUserPoolPostConfirmationEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
 import software.amazon.awssdk.services.sfn.SfnClient;
 import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
 
@@ -16,6 +18,8 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
     
     private static final String STATE_MACHINE_ARN = System.getenv( "STATE_MACHINE_ARN" );
     private final SfnClient sfnClient = SfnClient.create();
+    private final CognitoIdentityProviderClient cognitoClient = CognitoIdentityProviderClient.create();
+    private static final String USER = "USER";
     private final ObjectMapper objectMapper = new ObjectMapper();
     
     
@@ -29,7 +33,17 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
             }
             try {
                 String username = event.getUserName();
+                String userPoolId = event.getUserPoolId();
                 Map<String, String> userAttributes = event.getRequest().getUserAttributes();
+                
+                //Add user to cognito group
+                AdminAddUserToGroupRequest addUserToGroupRequest = AdminAddUserToGroupRequest.builder()
+                        .userPoolId( userPoolId )
+                        .username( username )
+                        .groupName( USER )
+                        .build();
+                
+                cognitoClient.adminAddUserToGroup( addUserToGroupRequest );
                 
                 Map<String, Object> input = new HashMap<>();
                 input.put( "username", username );

@@ -3,18 +3,18 @@ package com.freelanceplatform.handlers.users;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import com.freelanceplatform.models.User;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
-import java.util.HashMap;
 import java.util.Map;
 
 
 public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
     
     public static final String USER = "USER";
-    private final DynamoDbClient dynamoDbClient = DynamoDbClient.create();
+    private final DynamoDbEnhancedClient dynamoDbClient = DynamoDbEnhancedClient.create();
     private final String USERS_TABLE = System.getenv( "USERS_TABLE" );
     
     @Override
@@ -31,36 +31,23 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         // Get role from input (set by AssignUserRole step)
         String role = (String) input.getOrDefault( "role", USER );
         
-        // Prepare item to put into DynamoDB
-        Map<String, AttributeValue> item = new HashMap<>();
-        item.put( "userId", AttributeValue.builder().s( userId ).build() );
-        item.put( "email", AttributeValue.builder().s( userAttributes.get( "email" ) ).build() );
-        item.put( "firstName", AttributeValue.builder().s( userAttributes.getOrDefault( "given_name", "" ) ).build() );
-        item.put( "lastName", AttributeValue.builder().s( userAttributes.getOrDefault( "family_name", "" ) ).build() );
-        item.put( "phoneNumber", AttributeValue.builder().s( userAttributes.getOrDefault( "phone_number", "" ) ).build() );
-        item.put( "role", AttributeValue.builder().s( role ).build() );
+        // Map the incoming payload to a User object
+        User user = new User();
+        user.setCognitoId( userAttributes.get("sub") );
+        user.setUserId( userId );
+        user.setEmail( userAttributes.get("email") );
+        user.setFirstname( userAttributes.get("given_name") );
+        user.setMiddlename( userAttributes.getOrDefault("middle_name", "") );
+        user.setLastname( userAttributes.get("family_name") );
+        user.setPhonenumber( userAttributes.getOrDefault("phone_number", "") );
+        user.setPreferredJobCategories( userAttributes.getOrDefault( "custom:job_categories", "" ));
+        user.setRole(role);
         
-        // Handle job categories safely
-        String jobCategoriesStr = userAttributes.getOrDefault( "custom:job_categories", "" );
-        if ( !jobCategoriesStr.isEmpty() ) {
-            item.put( "jobCategories", AttributeValue.builder().ss( jobCategoriesStr.split( "," ) ).build() );
-        } else {
-            item.put( "jobCategories", AttributeValue.builder().ss().build() ); // Empty string set
-        }
+        // Save to DynamoDB
+        DynamoDbTable<User> userTable = dynamoDbClient.table(USERS_TABLE, TableSchema.fromBean(User.class));
+        userTable.putItem(user);
         
-        try {
-            PutItemRequest request = PutItemRequest.builder()
-                    .tableName( USERS_TABLE )
-                    .item( item )
-                    .build();
-            
-            dynamoDbClient.putItem( request );
-            
-            logger.log( "Successfully saved user data for userId: " + userId );
-        } catch ( Exception e ) {
-            logger.log( "Failed to save user data: " + e.getMessage() );
-            throw new RuntimeException( e );
-        }
+        logger.log( "User saved to DB" );
         
         return input;
     }
