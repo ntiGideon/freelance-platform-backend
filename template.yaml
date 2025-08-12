@@ -100,14 +100,15 @@ Resources:
           AttributeDataType: String
           Mutable: true
           Required: true
-        - Name: job_categories
+        - Name: middle_name
+          AttributeDataType: String
+          Mutable: true
+        - Name: custom:job_categories
           AttributeDataType: String
           Mutable: true
         - Name: phone_number
           AttributeDataType: String
           Mutable: true
-      LambdaConfig:
-        PostConfirmation: !GetAtt PostConfirmationLambda.Arn
 
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -120,11 +121,25 @@ Resources:
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_SRP_AUTH
       PreventUserExistenceErrors: ENABLED
+      AllowedOAuthFlowsUserPoolClient: True
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      SupportedIdentityProviders:
+        - COGNITO
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub "freelance-platform-${Environment}"
+      UserPoolId: !Ref UserPool
 
   UserGroup:
     Type: AWS::Cognito::UserPoolGroup
     Properties:
       GroupName: USER
+      Precedence: 2
       UserPoolId: !Ref UserPool
       Description: "Regular users of the platform"
 
@@ -132,6 +147,7 @@ Resources:
     Type: AWS::Cognito::UserPoolGroup
     Properties:
       GroupName: ADMIN
+      Precedence: 1
       UserPoolId: !Ref UserPool
       Description: "Platform administrators"
 
@@ -150,10 +166,29 @@ Resources:
               Action:
                 - states:StartExecution
               Resource: !Ref UserOnboardingStateMachine
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminAddUserToGroup
+              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}"
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
       Environment:
         Variables:
           STATE_MACHINE_ARN: !Ref UserOnboardingStateMachine
           ENVIRONMENT: !Ref Environment
+
+  # Allow Cognito to invoke PostConfirmation Lambda
+  LambdaPermissionForCognito:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt PostConfirmationLambda.Arn
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
 
   GenerateUserIdLambda:
     Type: AWS::Serverless::Function
@@ -163,24 +198,6 @@ Resources:
       Handler: com.freelanceplatform.handlers.users.GenerateUserIdHandler::handleRequest
       Environment:
         Variables:
-          ENVIRONMENT: !Ref Environment
-
-  AssignUserRoleLambda:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "AssignUserRoleLambda-${Environment}"
-      CodeUri: .
-      Handler: com.freelanceplatform.handlers.users.AssignUserRoleHandler::handleRequest
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - cognito-idp:AdminAddUserToGroup
-                - cognito-idp:AdminGetUser
-              Resource: !GetAtt UserPool.Arn
-      Environment:
-        Variables:
-          USER_POOL_ID: !Ref UserPool
           ENVIRONMENT: !Ref Environment
 
   SaveUserDataLambda:
@@ -264,10 +281,6 @@ Resources:
           SaveUserData:
             Type: Task
             Resource: !GetAtt SaveUserDataLambda.Arn
-            Next: AssignUserRole
-          AssignUserRole:
-            Type: Task
-            Resource: !GetAtt AssignUserRoleLambda.Arn
             Next: CreateAccount
           CreateAccount:
             Type: Task
@@ -282,8 +295,6 @@ Resources:
             FunctionName: !Ref GenerateUserIdLambda
         - LambdaInvokePolicy:
             FunctionName: !Ref SaveUserDataLambda
-        - LambdaInvokePolicy:
-            FunctionName: !Ref AssignUserRoleLambda
         - LambdaInvokePolicy:
             FunctionName: !Ref CreateAccountLambda
         - LambdaInvokePolicy:
@@ -378,6 +389,10 @@ Outputs:
     Value: !Ref UserPoolClient
     Export:
       Name: !Sub "FreelancePlatform-UserPoolClientId-${Environment}"
+
+  HostedUri:
+    Description: "Cognito Hosted UI URL"
+    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/${Environment}"
 
   UsersTableName:
     Description: "Users DynamoDB Table Name"
