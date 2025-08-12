@@ -103,7 +103,7 @@ Resources:
         - Name: middle_name
           AttributeDataType: String
           Mutable: true
-        - Name: custom:job_categories
+        - Name: job_categories
           AttributeDataType: String
           Mutable: true
         - Name: phone_number
