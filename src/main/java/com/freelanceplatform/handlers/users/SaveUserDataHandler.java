@@ -19,7 +19,12 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
     
     @Override
     public Map<String, Object> handleRequest (Map<String, Object> input, Context context) {
+        
+        DynamoDbTable<User> userTable = dynamoDbClient.table(USERS_TABLE, TableSchema.fromBean(User.class));
+        
         LambdaLogger logger = context.getLogger();
+        
+        // Get userId
         String userId = (String) input.get( "userId" );
         if ( userId == null ) throw new IllegalArgumentException( "userId missing in input" );
         
@@ -37,14 +42,13 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         user.setUserId( userId );
         user.setEmail( userAttributes.get("email") );
         user.setFirstname( userAttributes.get("given_name") );
-        user.setMiddlename( userAttributes.getOrDefault("middle_name", "") );
+        user.setMiddlename( userAttributes.getOrDefault("custom:middle_name", "") );
         user.setLastname( userAttributes.get("family_name") );
         user.setPhonenumber( userAttributes.getOrDefault("phone_number", "") );
-        user.setPreferredJobCategories( userAttributes.getOrDefault( "custom:job_categories", "" ));
+        user.setPreferredJobCategories( userAttributes.getOrDefault( "custom:job_category", "" ));
         user.setRole(role);
         
         // Save to DynamoDB
-        DynamoDbTable<User> userTable = dynamoDbClient.table(USERS_TABLE, TableSchema.fromBean(User.class));
         userTable.putItem(user);
         
         logger.log( "User saved to DB" );

@@ -4,15 +4,18 @@ package com.freelanceplatform.handlers.users;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import com.freelanceplatform.models.PaymentAccount;
+import com.freelanceplatform.models.User;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class DeleteUserHandler implements RequestHandler<Map<String, String>, String> {
-    private final DynamoDbClient dynamoDbClient = DynamoDbClient.create();
+    private final DynamoDbEnhancedClient dynamoDbClient = DynamoDbEnhancedClient.create();
     private final String USERS_TABLE = System.getenv( "USERS_TABLE" );
     private final String ACCOUNTS_TABLE = System.getenv( "ACCOUNTS_TABLE" );
     
@@ -46,15 +49,18 @@ public class DeleteUserHandler implements RequestHandler<Map<String, String>, St
     }
     
     private void deleteItemFromTable (String tableName, String keyValue, LambdaLogger logger) {
-        Map<String, AttributeValue> key = new HashMap<>();
-        key.put( "userId", AttributeValue.builder().s( keyValue ).build() );
+        DynamoDbTable<?> table;
         
-        DeleteItemRequest deleteRequest = DeleteItemRequest.builder()
-                .tableName( tableName )
-                .key( key )
-                .build();
+        if ( Objects.equals( tableName, USERS_TABLE ) ) {
+            table = dynamoDbClient.table( tableName, TableSchema.fromBean( User.class ) );
+        } else {
+            table = dynamoDbClient.table( tableName, TableSchema.fromBean( PaymentAccount.class ) );
+        }
         
-        dynamoDbClient.deleteItem( deleteRequest );
+        Key key = Key.builder().partitionValue( keyValue ).build();
+        
+        table.deleteItem( r -> r.key( key ) );
+        
         logger.log( "Deleted item with key " + keyValue + " from table " + tableName );
     }
 }

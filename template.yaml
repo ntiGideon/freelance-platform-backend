@@ -13,6 +13,12 @@ Parameters:
       - dev
       - prod
     Description: Environment name (dev or prod)
+
+  CallBackUrl:
+    Type: String
+    Description: Callback URL for Cognito User Pool
+    Default: "https://www.example.com/"
+
 Globals:
   Function:
     Runtime: java17
@@ -87,6 +93,8 @@ Resources:
         - email
       UsernameAttributes:
         - email
+      LambdaConfig:
+        PostConfirmation: !GetAtt PostConfirmationLambda.Arn
       Schema:
         - Name: email
           AttributeDataType: String
@@ -100,10 +108,10 @@ Resources:
           AttributeDataType: String
           Mutable: true
           Required: true
-        - Name: middle_name
+        - Name: custom:middle_name
           AttributeDataType: String
           Mutable: true
-        - Name: job_categories
+        - Name: custom:job_category
           AttributeDataType: String
           Mutable: true
         - Name: phone_number
@@ -122,6 +130,15 @@ Resources:
         - ALLOW_USER_SRP_AUTH
       SupportedIdentityProviders:
         - COGNITO
+      CallbackURLs:
+        - !Ref CallBackUrl
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      PreventUserExistenceErrors: ENABLED
 
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
@@ -163,7 +180,7 @@ Resources:
             - Effect: Allow
               Action:
                 - cognito-idp:AdminAddUserToGroup
-              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}"
+              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
@@ -386,7 +403,7 @@ Outputs:
 
   HostedUri:
     Description: "Cognito Hosted UI URL"
-    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/${Environment}"
+    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=token&scope=email+openid+profile&redirect_uri=https://www.example.com/"
 
   UsersTableName:
     Description: "Users DynamoDB Table Name"
