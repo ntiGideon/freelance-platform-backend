@@ -10,12 +10,11 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
-import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 public class DeleteUserHandler implements RequestHandler<Map<String, Object>, String> {
     private final DynamoDbEnhancedClient dynamoDbClient = DynamoDbEnhancedClient.create();
@@ -70,21 +69,14 @@ public class DeleteUserHandler implements RequestHandler<Map<String, Object>, St
         DynamoDbTable<User> usersTable = dynamoDbClient.table( USERS_TABLE, TableSchema.fromBean( User.class ) );
         
         // Query GSI and get first matching item
-        Iterator<Page<User>> results = usersTable.index( "EmailIndex" )
-                .query( r -> r.queryConditional( QueryConditional.keyEqualTo(
-                        Key.builder().partitionValue( email ).build()
-                ) ).limit( 1 ) )
-                .iterator();
+        Optional<User> results = usersTable.index( "EmailIndex" )
+                .query( r -> r.queryConditional(
+                        QueryConditional.keyEqualTo( k -> k.partitionValue( email ) ) ) )
+                .stream() // stream of Page<User>
+                .flatMap( page -> page.items().stream() ) // flatten to stream of User
+                .findFirst();
         
-        if ( results.hasNext() ) {
-            Page<User> page = results.next();
-            if ( !page.items().isEmpty() ) {
-                User user = page.items().get( 0 );
-                return user.getUserId();
-            }
-        }
-        
-        return null;
+        return results.map( User::getUserId ).orElse( null );
     }
     
     private void deleteItemFromTable (String tableName, String keyValue, LambdaLogger logger) {

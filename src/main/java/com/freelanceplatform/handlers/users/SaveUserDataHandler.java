@@ -8,7 +8,9 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 
 public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
@@ -20,7 +22,7 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
     @Override
     public Map<String, Object> handleRequest (Map<String, Object> input, Context context) {
         
-        DynamoDbTable<User> userTable = dynamoDbClient.table(USERS_TABLE, TableSchema.fromBean(User.class));
+        DynamoDbTable<User> userTable = dynamoDbClient.table( USERS_TABLE, TableSchema.fromBean( User.class ) );
         
         LambdaLogger logger = context.getLogger();
         
@@ -30,17 +32,31 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         
         // Map the incoming payload to a User object
         User user = new User();
-        user.setCognitoId( (String)input.get("sub") );
+        user.setCognitoId( (String) input.get( "sub" ) );
         user.setUserId( userId );
-        user.setEmail( (String)input.get("email") );
-        user.setFirstname( (String)input.get("firstname") );
-        user.setMiddlename( (String)input.getOrDefault("middlename", "") );
-        user.setLastname( (String)input.get("lastname") );
-        user.setPhonenumber( (String)input.getOrDefault("phonenumber", "") );
-        user.setPreferredJobCategories( (String)input.getOrDefault( "preferredJobCategories", "" ));
+        user.setEmail( (String) input.get( "email" ) );
+        user.setFirstname( (String) input.get( "firstname" ) );
+        user.setMiddlename( (String) input.getOrDefault( "middlename", "" ) );
+        user.setLastname( (String) input.get( "lastname" ) );
+        user.setPhonenumber( (String) input.getOrDefault( "phonenumber", "" ) );
+        
+        Object categoriesObj = input.getOrDefault( "preferredJobCategories", List.of() );
+        List<String> categories;
+        
+        // Get preferredJobCategories
+        if ( categoriesObj instanceof List<?> ) {
+            categories = ( (List<?>) categoriesObj ).stream()
+                    .filter( Objects::nonNull )
+                    .map( Object::toString )
+                    .toList();
+        } else {
+            categories = List.of();
+        }
+        
+        user.setPreferredJobCategories( categories );
         
         // Save to DynamoDB
-        userTable.putItem(user);
+        userTable.putItem( user );
         
         logger.log( "User saved to DB" );
         

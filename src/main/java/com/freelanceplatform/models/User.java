@@ -2,8 +2,11 @@ package com.freelanceplatform.models;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.List;
+
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 @DynamoDbBean
 public class User implements Serializable {
@@ -18,7 +21,7 @@ public class User implements Serializable {
     private String middlename;
     private String lastname;
     private String phonenumber;
-    private String preferredJobCategories;
+    private List<String> preferredJobCategories;
     private String role;
     
     @DynamoDbPartitionKey
@@ -38,6 +41,7 @@ public class User implements Serializable {
         this.userId = userId;
     }
     
+    @DynamoDbSecondaryPartitionKey(indexNames = "EmailIndex")
     public String getEmail() {
         return email;
     }
@@ -86,11 +90,11 @@ public class User implements Serializable {
         this.phonenumber = phonenumber;
     }
     
-    public String getPreferredJobCategories() {
+    public List<String> getPreferredJobCategories() {
         return preferredJobCategories;
     }
     
-    public void setPreferredJobCategories(String preferredJobCategories) {
+    public void setPreferredJobCategories(List<String> preferredJobCategories) {
         this.preferredJobCategories = preferredJobCategories;
     }
 }

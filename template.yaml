@@ -117,10 +117,10 @@ Resources:
           AttributeDataType: String
           Mutable: true
           Required: true
-        - Name: custom:middle_name
+        - Name: middle_name
           AttributeDataType: String
           Mutable: true
-        - Name: custom:job_category
+        - Name: job_category
           AttributeDataType: String
           Mutable: true
         - Name: phone_number
