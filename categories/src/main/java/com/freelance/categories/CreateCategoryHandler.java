@@ -11,6 +11,9 @@ import com.freelance.categories.model.CreateCategoryResponse;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
@@ -31,18 +34,23 @@ public class CreateCategoryHandler
   public APIGatewayProxyResponseEvent handleRequest(
       APIGatewayProxyRequestEvent input, Context context) {
     try {
+      // Handle base64 encoded request body
+      String requestBody = input.getBody();
+      if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded()) {
+        requestBody = new String(Base64.getDecoder().decode(requestBody), StandardCharsets.UTF_8);
+      }
+      
       CreateCategoryRequest request =
-          objectMapper.readValue(input.getBody(), CreateCategoryRequest.class);
+          objectMapper.readValue(requestBody, CreateCategoryRequest.class);
 
       if (!request.isValid()) {
         return createErrorResponse(400, "Category name is required");
       }
 
-      String categoryId = generateCategoryId(request.trimmedName());
+      // Generate UUID for categoryId instead of deriving from name
+      String categoryId = UUID.randomUUID().toString();
 
-      if (categoryExists(categoryId, request.trimmedName())) {
-        return createErrorResponse(409, "Category already exists");
-      }
+      // TODO: Add duplicate name checking later when NameIndex is stable
 
       // Create category without SNS topic ARN (will be created by stream processor)
       CategoryEntity categoryEntity =
@@ -72,23 +80,8 @@ public class CreateCategoryHandler
     }
   }
 
-  private String generateCategoryId(String name) {
-    return name.toLowerCase().replaceAll("[^a-z0-9\\s]", "").replaceAll("\\s+", "-").trim();
-  }
-
-  private boolean categoryExists(String categoryId, String name) {
+  private boolean categoryNameExists(String name) {
     try {
-      GetItemRequest getByIdRequest =
-          GetItemRequest.builder()
-              .tableName(categoriesTableName)
-              .key(Map.of("categoryId", AttributeValue.builder().s(categoryId).build()))
-              .build();
-
-      GetItemResponse getByIdResponse = dynamoDbClient.getItem(getByIdRequest);
-      if (getByIdResponse.hasItem()) {
-        return true;
-      }
-
       QueryRequest queryByNameRequest =
           QueryRequest.builder()
               .tableName(categoriesTableName)
@@ -102,7 +95,7 @@ public class CreateCategoryHandler
       return !queryByNameResponse.items().isEmpty();
 
     } catch (Exception e) {
-      throw new RuntimeException("Error checking category existence", e);
+      throw new RuntimeException("Error checking category name existence", e);
     }
   }
 
@@ -117,7 +110,7 @@ public class CreateCategoryHandler
         item.put("description", AttributeValue.builder().s(categoryEntity.description()).build());
       }
 
-      item.put("snsTopicArn", AttributeValue.builder().s(categoryEntity.snsTopicArn()).build());
+      // Don't include snsTopicArn initially - it will be added by stream processor
       item.put("createdAt", AttributeValue.builder().s(categoryEntity.createdAt()).build());
 
       PutItemRequest putItemRequest =

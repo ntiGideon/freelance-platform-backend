@@ -98,7 +98,8 @@ public class CategoryStreamProcessor implements RequestHandler<DynamodbEvent, Vo
 
   private String createSnsTopicForCategory(String categoryId, Context context) {
     try {
-      String topicName = "jobs-categories-" + categoryId;
+      // Create a topic name using category ID (remove hyphens for SNS compatibility)
+      String topicName = "jobs-categories-" + categoryId.replace("-", "");
 
       CreateTopicRequest createTopicRequest = CreateTopicRequest.builder().name(topicName).build();
 
