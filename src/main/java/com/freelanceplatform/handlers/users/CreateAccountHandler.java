@@ -3,21 +3,25 @@ package com.freelanceplatform.handlers.users;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.freelanceplatform.models.PaymentAccount;
 import com.freelanceplatform.utils.AccountNumberGenerator;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class CreateAccountHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
-    private final DynamoDbClient dynamoDbClient = DynamoDbClient.create();
+    private final DynamoDbEnhancedClient dynamoDbClient = DynamoDbEnhancedClient.create();
     private final String ACCOUNTS_TABLE = System.getenv( "ACCOUNTS_TABLE" );
     
     @Override
     public Map<String, Object> handleRequest (Map<String, Object> input, Context context) {
+        
+        DynamoDbTable<PaymentAccount> accountTable = dynamoDbClient.table( ACCOUNTS_TABLE, TableSchema.fromBean( PaymentAccount.class ) );
+        
         LambdaLogger logger = context.getLogger();
+        
         String userId = (String) input.get( "userId" );
         String firstname = (String) input.get( "firstname" );
         String lastname = (String) input.get( "lastname" );
@@ -30,19 +34,15 @@ public class CreateAccountHandler implements RequestHandler<Map<String, Object>,
         String accountName = ( firstname != null ? firstname : "" ) + " " + ( lastname != null ? lastname : "" );
         double initialBalance = 0.0;
         
-        Map<String, AttributeValue> item = new HashMap<>();
-        item.put( "userId", AttributeValue.builder().s( userId ).build() );
-        item.put( "accountNumber", AttributeValue.builder().s( accountNumber ).build() );
-        item.put( "accountName", AttributeValue.builder().s( accountName ).build() );
-        item.put( "balance", AttributeValue.builder().n( String.valueOf( initialBalance ) ).build() );
+        PaymentAccount paymentAccount = new PaymentAccount();
+        paymentAccount.setUserId( userId );
+        paymentAccount.setAccountNumber( accountNumber );
+        paymentAccount.setAccountName( accountName );
+        paymentAccount.setInitialBalance( initialBalance );
         
+        // Save to DynamoDB
         try {
-            PutItemRequest request = PutItemRequest.builder()
-                    .tableName( ACCOUNTS_TABLE )
-                    .item( item )
-                    .build();
-            
-            dynamoDbClient.putItem( request );
+            accountTable.putItem(paymentAccount);
             
             logger.log( "Created account " + accountNumber + " for userId " + userId );
         } catch ( Exception e ) {
