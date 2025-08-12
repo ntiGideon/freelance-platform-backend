@@ -14,17 +14,16 @@ import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPostConfirmationEvent, Object> {
+public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPostConfirmationEvent, CognitoUserPoolPostConfirmationEvent> {
     
     private static final String STATE_MACHINE_ARN = System.getenv( "STATE_MACHINE_ARN" );
+    private static final String USER = "USER";
     private final SfnClient sfnClient = SfnClient.create();
     private final CognitoIdentityProviderClient cognitoClient = CognitoIdentityProviderClient.create();
-    private static final String USER = "USER";
     private final ObjectMapper objectMapper = new ObjectMapper();
     
-    
     @Override
-    public Object handleRequest (CognitoUserPoolPostConfirmationEvent event, Context context) {
+    public CognitoUserPoolPostConfirmationEvent handleRequest (CognitoUserPoolPostConfirmationEvent event, Context context) {
         LambdaLogger logger = context.getLogger();
         if ( "PostConfirmation_ConfirmSignUp".equals( event.getTriggerSource() ) ) {
             if ( STATE_MACHINE_ARN == null || STATE_MACHINE_ARN.isEmpty() ) {
@@ -34,7 +33,6 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
             try {
                 String username = event.getUserName();
                 String userPoolId = event.getUserPoolId();
-                Map<String, String> userAttributes = event.getRequest().getUserAttributes();
                 
                 //Add user to cognito group
                 AdminAddUserToGroupRequest addUserToGroupRequest = AdminAddUserToGroupRequest.builder()
@@ -46,8 +44,26 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
                 cognitoClient.adminAddUserToGroup( addUserToGroupRequest );
                 
                 Map<String, Object> input = new HashMap<>();
-                input.put( "username", username );
-                input.put( "userAttributes", userAttributes );
+                
+                String cognitoSub = event.getRequest().getUserAttributes().get( "sub" );
+                
+                input.put( "userId", cognitoSub );
+                input.put( "cognitoId", cognitoSub );
+                input.put( "email", event.getRequest().getUserAttributes().get( "email" ) );
+                input.put( "firstname", event.getRequest().getUserAttributes().get( "given_name" ) );
+                input.put( "lastname", event.getRequest().getUserAttributes().get( "family_name" ) );
+                
+                if ( event.getRequest().getUserAttributes().containsKey( "custom:middle_name" ) ) {
+                    input.put( "middlename", event.getRequest().getUserAttributes().get( "custom:middle_name" ) );
+                }
+                
+                if ( event.getRequest().getUserAttributes().containsKey( "phone_number" ) ) {
+                    input.put( "phonenumber", event.getRequest().getUserAttributes().get( "phone_number" ) );
+                }
+                
+                if ( event.getRequest().getUserAttributes().containsKey( "custom:job_category" ) ) {
+                    input.put( "preferredJobCategories", event.getRequest().getUserAttributes().get( "custom:job_category" ) );
+                }
                 
                 String inputJson = objectMapper.writeValueAsString( input );
                 
