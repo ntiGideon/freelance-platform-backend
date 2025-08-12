@@ -8,7 +8,7 @@ import software.amazon.awssdk.services.sns.model.SetSubscriptionAttributesReques
 import software.amazon.awssdk.services.sns.model.SubscribeRequest;
 import software.amazon.awssdk.services.sns.model.SubscribeResponse;
 
-import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -22,8 +22,8 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
     @Override
     public Object handleRequest (Map<String, Object> input, Context context) {
         LambdaLogger logger = context.getLogger();
+        
         String email = (String) input.get( "email" );
-        String preferredCategoriesCsv = (String) input.get( "preferredJobCategories" );
         
         if ( email == null || topicArn == null ) throw new IllegalArgumentException( "Missing email or SNS_TOPIC_ARN" );
         
@@ -38,23 +38,23 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
         String subscriptionArn = subscribeResponse.subscriptionArn();
         
         // Build filter policy
-        if ( preferredCategoriesCsv != null && !preferredCategoriesCsv.isEmpty() ) {
-            String[] categories = preferredCategoriesCsv.split( "," );
+        @SuppressWarnings("unchecked")
+        List<String> categories = (List<String>) input.get("preferredJobCategories");
+        
+        if (categories != null && !categories.isEmpty()) {
             String filterPolicyJson = "{\"category\":[" +
-                    Arrays.stream( categories )
-                            .map( cat -> "\"" + cat.trim() + "\"" )
-                            .collect( Collectors.joining( "," ) ) + "]}";
+                                      categories.stream()
+                                              .map(cat -> "\"" + cat.trim() + "\"")
+                                              .collect(Collectors.joining(",")) + "]}";
             
-            SetSubscriptionAttributesRequest attrRequest = SetSubscriptionAttributesRequest.builder()
-                    .subscriptionArn( subscriptionArn )
-                    .attributeName( "FilterPolicy" )
-                    .attributeValue( filterPolicyJson )
-                    .build();
-            
-            snsClient.setSubscriptionAttributes( attrRequest );
+            snsClient.setSubscriptionAttributes(SetSubscriptionAttributesRequest.builder()
+                    .subscriptionArn(subscriptionArn)
+                    .attributeName("FilterPolicy")
+                    .attributeValue(filterPolicyJson)
+                    .build());
         }
         
-        logger.log( "Subscribed " + email + " with filter policy: " + preferredCategoriesCsv );
+        logger.log( "Subscribed " + email + " with filter policy: " + categories );
         
         return input;
     }

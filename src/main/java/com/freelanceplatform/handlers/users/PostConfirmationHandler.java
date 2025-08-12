@@ -11,8 +11,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUse
 import software.amazon.awssdk.services.sfn.SfnClient;
 import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPostConfirmationEvent, CognitoUserPoolPostConfirmationEvent> {
     
@@ -52,18 +51,12 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
                 input.put( "email", event.getRequest().getUserAttributes().get( "email" ) );
                 input.put( "firstname", event.getRequest().getUserAttributes().get( "given_name" ) );
                 input.put( "lastname", event.getRequest().getUserAttributes().get( "family_name" ) );
+                input.put( "middlename", event.getRequest().getUserAttributes().getOrDefault( "middle_name", "" ) );
+                input.put( "phonenumber", event.getRequest().getUserAttributes().getOrDefault( "phone_number", "" ) );
                 
-                if ( event.getRequest().getUserAttributes().containsKey( "custom:middle_name" ) ) {
-                    input.put( "middlename", event.getRequest().getUserAttributes().get( "custom:middle_name" ) );
-                }
+                List<String> preferredJobCategories = getJobCategories( event );
                 
-                if ( event.getRequest().getUserAttributes().containsKey( "phone_number" ) ) {
-                    input.put( "phonenumber", event.getRequest().getUserAttributes().get( "phone_number" ) );
-                }
-                
-                if ( event.getRequest().getUserAttributes().containsKey( "custom:job_category" ) ) {
-                    input.put( "preferredJobCategories", event.getRequest().getUserAttributes().get( "custom:job_category" ) );
-                }
+                input.put("preferredJobCategories", preferredJobCategories);
                 
                 String inputJson = objectMapper.writeValueAsString( input );
                 
@@ -81,5 +74,18 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
             }
         }
         return event;
+    }
+    
+    private List<String> getJobCategories (CognitoUserPoolPostConfirmationEvent event) {
+        // ✅ Get client metadata from Amplify signup
+        Map<String, String> clientMetadata = event.getRequest().getClientMetadata();
+        
+        List<String> preferredJobCategories = Collections.emptyList();
+        if (clientMetadata != null && clientMetadata.containsKey("job_category")) {
+            String jobCategoryStr = clientMetadata.get("job_category");
+            // Expecting comma-separated values: "IT,Design,Marketing"
+            preferredJobCategories = Arrays.asList(jobCategoryStr.split("\\s*,\\s*"));
+        }
+        return preferredJobCategories;
     }
 }
