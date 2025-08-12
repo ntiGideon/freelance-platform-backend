@@ -10,6 +10,7 @@ public class User implements Serializable {
     @Serial
     private static final long serialVersionUID = 4517148380012406558L;
     
+    
     private String cognitoId;
     private String userId;
     private String email;
