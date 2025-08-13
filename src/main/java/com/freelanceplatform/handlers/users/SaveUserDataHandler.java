@@ -3,7 +3,6 @@ package com.freelanceplatform.handlers.users;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.freelanceplatform.models.User;
 import com.freelanceplatform.utils.Utils;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -30,6 +29,8 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         // Get userId
         String userId = (String) input.get( "userId" );
         if ( userId == null ) throw new IllegalArgumentException( "userId missing in input" );
+        
+        System.out.println("preferred jobs" + input.get("preferredJobCategories"));
         
         // Map the incoming payload to a User object
         User user = new User();

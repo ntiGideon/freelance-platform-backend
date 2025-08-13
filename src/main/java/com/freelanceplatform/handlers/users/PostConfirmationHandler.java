@@ -56,9 +56,12 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
                 input.put( "middlename", event.getRequest().getUserAttributes().getOrDefault( "middle_name", "" ) );
                 input.put( "phonenumber", event.getRequest().getUserAttributes().getOrDefault( "phone_number", "" ) );
                 
+                System.out.println( "preferred jobs" + event.getRequest().getClientMetadata().get( "job_category" ) );
+                
+                
                 List<String> preferredJobCategories = getJobCategories( event );
                 
-                input.put("preferredJobCategories", preferredJobCategories);
+                input.put( "preferredJobCategories", preferredJobCategories );
                 
                 String inputJson = objectMapper.writeValueAsString( input );
                 
@@ -82,20 +85,20 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
         // ✅ Get client metadata from Amplify signup
         Map<String, String> clientMetadata = event.getRequest().getClientMetadata();
         
-        if (clientMetadata == null || !clientMetadata.containsKey("job_category")) {
+        if ( clientMetadata == null || !clientMetadata.containsKey( "job_category" ) ) {
             return Collections.emptyList();
         }
         
-        String rawValue = clientMetadata.get("job_category");
+        String rawValue = clientMetadata.get( "job_category" );
         try {
             // Parse JSON array string into List<String>
-            return objectMapper.readValue(rawValue, new TypeReference<>() {
-            });
-        } catch (Exception e) {
+            return objectMapper.readValue( rawValue, new TypeReference<>() {
+            } );
+        } catch ( Exception e ) {
             // fallback if the value was just a plain comma-separated string
-            return Arrays.stream(rawValue.split("\\s*,\\s*"))
-                    .filter(s -> !s.isEmpty())
-                    .collect( Collectors.toList());
+            return Arrays.stream( rawValue.split( "\\s*,\\s*" ) )
+                    .filter( s -> !s.isEmpty() )
+                    .collect( Collectors.toList() );
         }
     }
 }
