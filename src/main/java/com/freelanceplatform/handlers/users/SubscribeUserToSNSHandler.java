@@ -3,6 +3,7 @@ package com.freelanceplatform.handlers.users;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.freelanceplatform.utils.Utils;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.SetSubscriptionAttributesRequest;
 import software.amazon.awssdk.services.sns.model.SubscribeRequest;
@@ -17,7 +18,6 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
     
     private final SnsClient snsClient = SnsClient.create();
     private final String topicArn = System.getenv( "SNS_TOPIC_ARN" );
-    
     
     @Override
     public Object handleRequest (Map<String, Object> input, Context context) {
@@ -38,8 +38,7 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
         String subscriptionArn = subscribeResponse.subscriptionArn();
         
         // Build filter policy
-        @SuppressWarnings("unchecked")
-        List<String> categories = (List<String>) input.get("preferredJobCategories");
+        List<String> categories = Utils.parsePreferredJobCategories(input.get("preferredJobCategories"));
         
         if (categories != null && !categories.isEmpty()) {
             String filterPolicyJson = "{\"category\":[" +

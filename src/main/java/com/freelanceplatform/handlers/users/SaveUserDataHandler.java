@@ -3,14 +3,15 @@ package com.freelanceplatform.handlers.users;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.freelanceplatform.models.User;
+import com.freelanceplatform.utils.Utils;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 
 public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
@@ -39,19 +40,9 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         user.setMiddlename( (String) input.getOrDefault( "middlename", "" ) );
         user.setLastname( (String) input.get( "lastname" ) );
         user.setPhonenumber( (String) input.getOrDefault( "phonenumber", "" ) );
+        user.setRole( USER );
         
-        Object categoriesObj = input.getOrDefault( "preferredJobCategories", List.of() );
-        List<String> categories;
-        
-        // Get preferredJobCategories
-        if ( categoriesObj instanceof List<?> ) {
-            categories = ( (List<?>) categoriesObj ).stream()
-                    .filter( Objects::nonNull )
-                    .map( Object::toString )
-                    .toList();
-        } else {
-            categories = List.of();
-        }
+        List<String> categories = Utils.parsePreferredJobCategories( input.get( "preferredJobCategories" ) );
         
         user.setPreferredJobCategories( categories );
         

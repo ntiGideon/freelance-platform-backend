@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.CognitoUserPoolPostConfirmationEvent;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
@@ -12,6 +13,7 @@ import software.amazon.awssdk.services.sfn.SfnClient;
 import software.amazon.awssdk.services.sfn.model.StartExecutionRequest;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPostConfirmationEvent, CognitoUserPoolPostConfirmationEvent> {
     
@@ -80,12 +82,20 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
         // ✅ Get client metadata from Amplify signup
         Map<String, String> clientMetadata = event.getRequest().getClientMetadata();
         
-        List<String> preferredJobCategories = Collections.emptyList();
-        if (clientMetadata != null && clientMetadata.containsKey("job_category")) {
-            String jobCategoryStr = clientMetadata.get("job_category");
-            // Expecting comma-separated values: "IT,Design,Marketing"
-            preferredJobCategories = Arrays.asList(jobCategoryStr.split("\\s*,\\s*"));
+        if (clientMetadata == null || !clientMetadata.containsKey("job_category")) {
+            return Collections.emptyList();
         }
-        return preferredJobCategories;
+        
+        String rawValue = clientMetadata.get("job_category");
+        try {
+            // Parse JSON array string into List<String>
+            return objectMapper.readValue(rawValue, new TypeReference<>() {
+            });
+        } catch (Exception e) {
+            // fallback if the value was just a plain comma-separated string
+            return Arrays.stream(rawValue.split("\\s*,\\s*"))
+                    .filter(s -> !s.isEmpty())
+                    .collect( Collectors.toList());
+        }
     }
 }

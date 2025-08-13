@@ -135,6 +135,18 @@ Resources:
       SupportedIdentityProviders:
         - COGNITO
       PreventUserExistenceErrors: ENABLED
+      CallbackURLs:
+        - https://www.example.com/callback   # for local testing
+      LogoutURLs:
+        - https://www.example.com/logout     # for local testing
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
 
   UserGroup:
     Type: AWS::Cognito::UserPoolGroup
@@ -151,6 +163,12 @@ Resources:
       Precedence: 1
       UserPoolId: !Ref UserPool
       Description: "Platform administrators"
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub "freelance-platform-${Environment}-${AWS::AccountId}"
+      UserPoolId: !Ref UserPool
 
   ###################################
   # Lambda Functions
@@ -391,18 +409,6 @@ Outputs:
     Export:
       Name: !Sub "FreelancePlatform-UserPoolClientId-${Environment}"
 
-  UsersTableName:
-    Description: "Users DynamoDB Table Name"
-    Value: !Ref UsersTable
-    Export:
-      Name: !Sub "FreelancePlatform-UsersTableName-${Environment}"
-
-  AccountsTableName:
-    Description: "Accounts DynamoDB Table Name"
-    Value: !Ref AccountsTable
-    Export:
-      Name: !Sub "FreelancePlatform-AccountsTableName-${Environment}"
-
   UserOnboardingStateMachineArn:
     Description: "ARN of User Onboarding Step Function"
     Value: !Ref UserOnboardingStateMachine
@@ -414,3 +420,9 @@ Outputs:
     Value: !Ref UserDeletionCleanupStateMachine
     Export:
       Name: !Sub "FreelancePlatform-UserDeletionCleanupSFNArn-${Environment}"
+
+  CognitoHostedUiUrl:
+    Description: "Cognito Hosted UI Login URL"
+    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=code&scope=email+openid+profile&redirect_uri=https://www.example.com/callback"
+    Export:
+      Name: !Sub "FreelancePlatform-HostedUiUrl-${Environment}"
