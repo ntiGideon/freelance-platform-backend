@@ -333,7 +333,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-CreateCategory"
-      CodeUri: categories/target/categories-1.0.0.jar
+      CodeUri: categories/target/
       Handler: com.freelance.categories.CreateCategoryHandler::handleRequest
       Environment:
         Variables:
@@ -353,7 +353,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-GetCategories"
-      CodeUri: categories/target/categories-1.0.0.jar
+      CodeUri: categories/target/
       Handler: com.freelance.categories.GetCategoriesHandler::handleRequest
       Environment:
         Variables:
@@ -373,7 +373,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-CategoryStreamProcessor"
-      CodeUri: categories/target/categories-1.0.0.jar
+      CodeUri: categories/target/
       Handler: com.freelance.categories.CategoryStreamProcessor::handleRequest
       Environment:
         Variables:
@@ -403,7 +403,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobRouter"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.shared.JobRouter::handleRequest
       Timeout: 60
       Environment:
@@ -437,7 +437,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobCreatedProcessor"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.events.processors.NotifyJobCategorySubscribersHandler::handleRequest
       Policies:
         - Statement:
@@ -459,7 +459,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobNotificationHandler"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.notifications.JobNotificationHandler::handleRequest
       Environment:
         Variables:
@@ -488,7 +488,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobClaimedProcessor"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.events.processors.JobClaimedProcessor::handleRequest
       Environment:
         Variables:
@@ -512,7 +512,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobSubmittedProcessor"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.events.processors.JobSubmittedProcessor::handleRequest
       Environment:
         Variables:
@@ -536,7 +536,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobApprovedProcessor"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.events.processors.JobApprovedProcessor::handleRequest
       Environment:
         Variables:
@@ -560,7 +560,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobRejectedProcessor"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.events.processors.JobRejectedProcessor::handleRequest
       Environment:
         Variables:
@@ -587,7 +587,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobExpiryScanner"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.schedulers.JobExpiryScanner::handleRequest
       Timeout: 300  # 5 minutes
       Environment:
@@ -613,7 +613,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobExpiryProcessor"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.schedulers.processors.JobExpiryProcessor::handleRequest
       Timeout: 60
       Environment:
@@ -636,7 +636,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobTimeoutScanner"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.schedulers.JobTimeoutScanner::handleRequest
       Timeout: 300  
       Environment:
@@ -662,7 +662,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${Environment}-JobTimeoutProcessor"
-      CodeUri: jobs/target/jobs-1.0.0.jar
+      CodeUri: jobs/target/
       Handler: com.freelance.jobs.schedulers.processors.JobTimeoutProcessor::handleRequest
       Timeout: 60
       Environment:
@@ -781,7 +781,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "PostConfirmationLambda-${Environment}"
-      CodeUri: authentication/target/authentication-1.0.0.jar
+      CodeUri: authentication/target/
       Handler: com.freelanceplatform.handlers.users.PostConfirmationHandler::handleRequest
       Policies:
         - Statement:
@@ -817,7 +817,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "GenerateUserIdLambda-${Environment}"
-      CodeUri: authentication/target/authentication-1.0.0.jar
+      CodeUri: authentication/target/
       Handler: com.freelanceplatform.handlers.users.GenerateUserIdHandler::handleRequest
       Environment:
         Variables:
@@ -827,7 +827,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "SaveUserDataLambda-${Environment}"
-      CodeUri: authentication/target/authentication-1.0.0.jar
+      CodeUri: authentication/target/
       Handler: com.freelanceplatform.handlers.users.SaveUserDataHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
@@ -841,7 +841,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "CreateAccountLambda-${Environment}"
-      CodeUri: authentication/target/authentication-1.0.0.jar
+      CodeUri: authentication/target/
       Handler: com.freelanceplatform.handlers.users.CreateAccountHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
@@ -855,7 +855,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "SubscribeUserToSNSLambda-${Environment}"
-      CodeUri: authentication/target/authentication-1.0.0.jar
+      CodeUri: authentication/target/
       Handler: com.freelanceplatform.handlers.users.SubscribeUserToSNSHandler::handleRequest
       Policies:
         - Statement:
@@ -874,7 +874,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "DeleteUserHandler-${Environment}"
-      CodeUri: authentication/target/authentication-1.0.0.jar
+      CodeUri: authentication/target/
       Handler: com.freelanceplatform.handlers.users.DeleteUserHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
