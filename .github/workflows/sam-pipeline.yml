@@ -59,7 +59,7 @@ jobs:
         run: mvn clean package -DskipTests -B
 
       - name: Build SAM application
-        run: sam build --template ${{ env.SAM_TEMPLATE }} --use-container --parallel --cached
+        run: sam build --template ${{ env.SAM_TEMPLATE }} --parallel --cached
 
       - name: Deploy to Dev
         run: |
