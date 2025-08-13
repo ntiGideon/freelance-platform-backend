@@ -13,7 +13,6 @@ public class User implements Serializable {
     @Serial
     private static final long serialVersionUID = 4517148380012406558L;
     
-    
     private String cognitoId;
     private String userId;
     private String email;
@@ -21,16 +20,12 @@ public class User implements Serializable {
     private String middlename;
     private String lastname;
     private String phonenumber;
-    private List<String> preferredJobCategories;
+    private List<String> jobCategoryIds;
     private String role;
     
     @DynamoDbPartitionKey
     public String getUserId() {
         return userId;
-    }
-    
-    public String getCognitoId() {
-        return cognitoId;
     }
     
     public void setCognitoId(String cognitoId) {
@@ -50,51 +45,27 @@ public class User implements Serializable {
         this.email = email;
     }
     
-    public String getRole(){
-        return role;
-    }
-    
     public void setRole(String role){
         this.role = role;
-    }
-    
-    public String getFirstname() {
-        return firstname;
     }
     
     public void setFirstname(String firstname) {
         this.firstname = firstname;
     }
     
-    public String getMiddlename() {
-        return middlename;
-    }
-    
     public void setMiddlename(String middlename) {
         this.middlename = middlename;
-    }
-    
-    public String getLastname() {
-        return lastname;
     }
     
     public void setLastname(String lastname) {
         this.lastname = lastname;
     }
     
-    public String getPhonenumber () {
-        return phonenumber;
-    }
-    
     public void setPhonenumber (String phonenumber) {
         this.phonenumber = phonenumber;
     }
     
-    public List<String> getPreferredJobCategories() {
-        return preferredJobCategories;
-    }
-    
-    public void setPreferredJobCategories(List<String> preferredJobCategories) {
-        this.preferredJobCategories = preferredJobCategories;
+    public void setJobCategoryIds (List<String> jobCategoryIds) {
+        this.jobCategoryIds = jobCategoryIds;
     }
 }

@@ -223,6 +223,48 @@ Resources:
         - Key: Service
           Value: Jobs
 
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "UsersTable-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  AccountsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "AccountsTable-${Environment}"
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: accountNumber
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: AccountNumberIndex
+          KeySchema:
+            - AttributeName: accountNumber
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
   ## =========================
   ## EventBridge Resources
   ## =========================
@@ -639,50 +681,6 @@ Resources:
             Queue: !GetAtt JobTimeoutQueue.Arn
             BatchSize: 10
 
-  ###################################
-  # DynamoDB Tables
-  ###################################
-  UsersTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub "UsersTable-${Environment}"
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: userId
-          AttributeType: S
-        - AttributeName: email
-          AttributeType: S
-      KeySchema:
-        - AttributeName: userId
-          KeyType: HASH
-      GlobalSecondaryIndexes:
-        - IndexName: EmailIndex
-          KeySchema:
-            - AttributeName: email
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-
-  AccountsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub "AccountsTable-${Environment}"
-      AttributeDefinitions:
-        - AttributeName: userId
-          AttributeType: S
-        - AttributeName: accountNumber
-          AttributeType: S
-      KeySchema:
-        - AttributeName: userId
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
-      GlobalSecondaryIndexes:
-        - IndexName: AccountNumberIndex
-          KeySchema:
-            - AttributeName: accountNumber
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
 
   ###################################
   # SNS Topic for Job Alerts
@@ -721,7 +719,7 @@ Resources:
         - Name: middle_name
           AttributeDataType: String
           Mutable: true
-        - Name: job_category
+        - Name: job_category_ids
           AttributeDataType: String
           Mutable: true
         - Name: phone_number
@@ -777,7 +775,7 @@ Resources:
       UserPoolId: !Ref UserPool
 
   ###################################
-  # Lambda Functions
+  # Auth Lambda Functions
   ###################################
   PostConfirmationLambda:
     Type: AWS::Serverless::Function
@@ -869,6 +867,7 @@ Resources:
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref JobAlertsTopic
+          CATEGORIES_TABLE: !Ref CategoriesTable
           ENVIRONMENT: !Ref Environment
 
   DeleteUserHandler:

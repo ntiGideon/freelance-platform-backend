@@ -4,23 +4,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.freelance</groupId>
-    <artifactId>freelance-platform</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <parent>
+        <groupId>com.freelanceplatform</groupId>
+        <artifactId>freelance-platform-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>categories</artifactId>
     <packaging>jar</packaging>
-
-    <name>Freelance Platform</name>
-    <description>Serverless freelance job platform</description>
-
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <aws.lambda.java.version>1.2.3</aws.lambda.java.version>
-        <aws.sdk.version>2.21.29</aws.sdk.version>
-        <jackson.version>2.15.2</jackson.version>
-        <junit.version>5.10.0</junit.version>
-    </properties>
+    <name>Freelance Platform - Categories</name>
+    <description>Serverless freelance job platform - categories</description>
 
     <dependencies>
         <!-- AWS Lambda Java Core -->
@@ -41,28 +35,28 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>dynamodb</artifactId>
-            <version>${aws.sdk.version}</version>
+            <version>${awsjavasdk.version}</version>
         </dependency>
 
         <!-- AWS SDK v2 - SNS -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sns</artifactId>
-            <version>${aws.sdk.version}</version>
+            <version>${awsjavasdk.version}</version>
         </dependency>
 
         <!-- AWS SDK v2 - SQS -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sqs</artifactId>
-            <version>${aws.sdk.version}</version>
+            <version>${awsjavasdk.version}</version>
         </dependency>
 
         <!-- AWS SDK v2 - Step Functions -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sfn</artifactId>
-            <version>${aws.sdk.version}</version>
+            <version>${awsjavasdk.version}</version>
         </dependency>
 
         <!-- Jackson for JSON processing -->
@@ -98,13 +92,13 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit.version}</version>
+            <version>${junit.jupiter.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>${junit.version}</version>
+            <version>${junit.jupiter.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -142,12 +136,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.1.2</version>
             </plugin>
         </plugins>
     </build>
