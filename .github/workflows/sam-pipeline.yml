@@ -55,6 +55,9 @@ jobs:
       - name: Validate SAM template
         run: sam validate --template ${{ env.SAM_TEMPLATE }}
 
+      - name: Build all Maven modules
+        run: mvn clean package -DskipTests -B
+
       - name: Build SAM application
         run: sam build --template ${{ env.SAM_TEMPLATE }} --use-container --parallel --cached
 
