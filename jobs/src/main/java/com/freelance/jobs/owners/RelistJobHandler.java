@@ -15,6 +15,8 @@ import com.freelance.jobs.shared.ResponseUtil;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
@@ -55,8 +57,12 @@ public class RelistJobHandler implements RequestHandler<APIGatewayProxyRequestEv
                 return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
             }
 
-            // Parse relist options from request body
-            RelistOptions options = parseRelistOptions(input.getBody());
+            // Handle base64 encoded request body and parse relist options
+            String requestBody = input.getBody();
+            if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded()) {
+                requestBody = new String(Base64.getDecoder().decode(requestBody), StandardCharsets.UTF_8);
+            }
+            RelistOptions options = parseRelistOptions(requestBody);
 
             context.getLogger().log("Relisting job " + jobId + " by owner " + ownerId);
 

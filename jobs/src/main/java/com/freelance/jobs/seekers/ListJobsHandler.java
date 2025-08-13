@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
@@ -107,7 +108,7 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
                 List<String> targetStatuses = List.of(statusFilter.split(","));
                 jobs = jobs.stream()
                         .filter(job -> targetStatuses.contains(job.status()))
-                        .toList();
+                        .collect(Collectors.toList());
             }
             
             return jobs;
@@ -219,7 +220,7 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
                         return false; // Filter out jobs with invalid expiry dates
                     }
                 })
-                .toList();
+                .collect(Collectors.toList());
     }
 
     
