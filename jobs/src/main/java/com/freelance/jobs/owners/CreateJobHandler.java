@@ -17,6 +17,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
@@ -54,7 +56,13 @@ public class CreateJobHandler
         return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
       }
 
-      CreateJobRequest request = objectMapper.readValue(input.getBody(), CreateJobRequest.class);
+      // Handle base64 encoded request body
+      String requestBody = input.getBody();
+      if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded()) {
+        requestBody = new String(Base64.getDecoder().decode(requestBody), StandardCharsets.UTF_8);
+      }
+      
+      CreateJobRequest request = objectMapper.readValue(requestBody, CreateJobRequest.class);
 
       if (!request.isValid()) {
         return ResponseUtil.createErrorResponse(400, request.getValidationError());
