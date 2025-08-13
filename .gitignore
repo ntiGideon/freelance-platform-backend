@@ -2,6 +2,7 @@
 .aws-sam/
 packaged.yaml
 
+ARCHITECTURE-README.md
 txt.txt
 
 # Java
