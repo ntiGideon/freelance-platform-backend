@@ -36,29 +36,28 @@ public class DeleteUserHandler implements RequestHandler<Map<String, Object>, St
         
         // Extract username (sub) from EventBridge event
         Map<String, Object> detail = (Map<String, Object>) event.get( "detail" );
-        Map<String, Object> requestParams = (Map<String, Object>) detail.get( "requestParameters" );
+        Map<String, Object> additionalEventData = (Map<String, Object>) detail.get( "additionalEventData" );
         
-        String username = (String) requestParams.get( "username" );
-        logger.log( "Deleting data for user: " + username + "\n" );
+        String userId = (String) additionalEventData.get( "sub" );
+        logger.log( "Deleting user and account data..." );
         
-        if ( username == null || username.trim().isEmpty() ) {
-            String errorMsg = "Invalid input: username is required";
+        if ( userId == null || userId.trim().isEmpty() ) {
+            String errorMsg = "Invalid input: userId is required";
             logger.log( errorMsg );
             throw new IllegalArgumentException( errorMsg );
         }
         
         try {
             // Delete user data
-            deleteItemFromTable( USERS_TABLE, username, logger );
+            deleteItemFromTable( USERS_TABLE, userId, logger );
             
             // Delete account data
-            deleteItemFromTable( ACCOUNTS_TABLE, username, logger );
+            deleteItemFromTable( ACCOUNTS_TABLE, userId, logger );
             
-            logger.log( "Successfully deleted user and account data for user: " + username );
-            return "Deleted user and account data for user: " + username;
+            return "Successfully deleted user and account data";
             
         } catch ( Exception e ) {
-            String err = "Failed to delete user/account data: " + e.getMessage();
+            String err = "Failed to delete user and account data: " + e.getMessage();
             logger.log( err );
             throw e;
         }
@@ -77,6 +76,6 @@ public class DeleteUserHandler implements RequestHandler<Map<String, Object>, St
         
         table.deleteItem( r -> r.key( key ) );
         
-        logger.log( "Deleted item with key " + keyValue + " from table " + tableName );
+        logger.log( "Deleted item from table " + tableName );
     }
 }
