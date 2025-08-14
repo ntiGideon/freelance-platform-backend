@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   Freelance Job/Task Platform
- 
+  
   Unified serverless freelance platform with single API Gateway.
 
 Parameters:
@@ -11,11 +11,24 @@ Parameters:
     Default: dev
     AllowedValues: [dev, prod]
     Description: Environment name
-  
+
   UsersTableName:
     Type: String
     Default: dev-UsersTable
     Description: Name of the existing Users table
+
+  BackupRetentionDays:
+    Type: Number
+    Default: 35
+    Description: Number of days to retain DynamoDB backups
+    MinValue: 1
+    MaxValue: 35
+
+  BackupScheduleExpression:
+    Type: String
+    Default: "cron(0 2 * * ? *)"
+    Description: "Schedule expression for Cognito backup job (UTC)"
+    AllowedPattern: "^cron\\(.*\\)$"
 
 Globals:
   Function:
@@ -224,6 +237,182 @@ Resources:
           Value: Jobs
 
   ## =========================
+  ## DynamoDB Backup Configuration (Single Plan for All Tables)
+  ## =========================
+  DynamoDBBackupVault:
+    Type: AWS::Backup::BackupVault
+    Properties:
+      BackupVaultName: !Sub "${Environment}-DynamoDB-Backup-Vault"
+      BackupVaultTags:
+        Environment: !Ref Environment
+        Project: FreelancePlatform
+        Service: Backup
+
+  DynamoDBBackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: !Sub "${Environment}-DynamoDB-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: DailyBackupRule
+            TargetBackupVault: !Ref DynamoDBBackupVault
+            ScheduleExpression: "cron(0 5 * * ? *)" # Daily at 5 AM UTC
+            StartWindowMinutes: 60
+            CompletionWindowMinutes: 180
+            Lifecycle:
+              DeleteAfterDays: !Ref BackupRetentionDays
+            EnableContinuousBackup: true
+
+  BackupServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: backup.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: DynamoDBBackupAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:ListTagsOfResource
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - backup:StartBackupJob
+                  - backup:GetBackupVaultAccessPolicy
+                  - backup:PutBackupVaultAccessPolicy
+                Resource: "*"
+
+  ## =========================
+  ## Cognito User Pool Backup System
+  ## =========================
+  CognitoBackupUserPoolTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-CognitoBackupUserPool"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: backupTimestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: backupTimestamp
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+            - AttributeName: backupTimestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: CognitoBackup
+
+  CognitoBackupUserPoolSecondaryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-CognitoBackupUserPool-Secondary"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: backupTimestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: backupTimestamp
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+            - AttributeName: backupTimestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: CognitoBackup
+
+  CognitoBackupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-CognitoBackupFunction"
+      CodeUri: cognito-backup/
+      Handler: com.freelance.cognito.backup.CognitoBackupHandler::handleRequest
+      Timeout: 300
+      Environment:
+        Variables:
+          PRIMARY_BACKUP_TABLE: !Ref CognitoBackupUserPoolTable
+          SECONDARY_BACKUP_TABLE: !Ref CognitoBackupUserPoolSecondaryTable
+          USER_POOL_ID: !Ref UserPool
+          BACKUP_TTL_DAYS: "90"
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+              Resource: !GetAtt UserPool.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:BatchWriteItem
+                - dynamodb:PutItem
+              Resource:
+                - !GetAtt CognitoBackupUserPoolTable.Arn
+                - !GetAtt CognitoBackupUserPoolSecondaryTable.Arn
+      Events:
+        BackupSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref BackupScheduleExpression
+            Name: !Sub "${Environment}-CognitoBackupSchedule"
+            Description: "Periodic backup of Cognito User Pool data to DynamoDB"
+            Enabled: true
+
+  ## =========================
   ## EventBridge Resources
   ## =========================
   JobsEventBus:
@@ -263,7 +452,7 @@ Resources:
       MessageRetentionPeriod: 1209600  # 14 days
 
   ## =========================
-  ## Job Timeout System  
+  ## Job Timeout System
   ## =========================
   JobTimeoutQueue:
     Type: AWS::SQS::Queue
@@ -340,11 +529,11 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref CategoriesTable
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:CreateTopic
-              - sns:GetTopicAttributes
-            Resource: "*"
+            - Effect: Allow
+              Action:
+                - sns:CreateTopic
+                - sns:GetTopicAttributes
+              Resource: "*"
       Events:
         CategoryStreamEvent:
           Type: DynamoDB
@@ -376,10 +565,10 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref CategoriesTable
         - Statement:
-          - Effect: Allow
-            Action:
-              - events:PutEvents
-            Resource: !GetAtt JobsEventBus.Arn
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !GetAtt JobsEventBus.Arn
       Events:
         JobApi:
           Type: Api
@@ -399,10 +588,10 @@ Resources:
       Handler: com.freelance.jobs.events.processors.NotifyJobCategorySubscribersHandler::handleRequest
       Policies:
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: "*"
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: "*"
       Events:
         JobCreatedEvent:
           Type: CloudWatchEvent
@@ -425,16 +614,16 @@ Resources:
           FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
       Policies:
         - Statement:
-          - Effect: Allow
-            Action:
-              - ses:SendEmail
-              - ses:SendRawEmail
-            Resource: "*"
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
         - Statement:
-          - Effect: Allow
-            Action:
-              - dynamodb:GetItem
-            Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
       Events:
         NotificationTopic:
           Type: SNS
@@ -453,10 +642,10 @@ Resources:
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: !Ref JobNotificationsTopic
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         JobClaimedEvent:
           Type: CloudWatchEvent
@@ -477,10 +666,10 @@ Resources:
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: !Ref JobNotificationsTopic
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         JobSubmittedEvent:
           Type: CloudWatchEvent
@@ -501,10 +690,10 @@ Resources:
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: !Ref JobNotificationsTopic
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         JobApprovedEvent:
           Type: CloudWatchEvent
@@ -525,10 +714,10 @@ Resources:
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: !Ref JobNotificationsTopic
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         JobRejectedEvent:
           Type: CloudWatchEvent
@@ -556,15 +745,15 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref JobsTable
         - Statement:
-          - Effect: Allow
-            Action:
-              - sqs:SendMessage
-            Resource: !GetAtt JobExpiryQueue.Arn
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt JobExpiryQueue.Arn
       Events:
         ExpirySchedule:
           Type: Schedule
           Properties:
-            Schedule: "rate(5 minutes)"  
+            Schedule: "rate(5 minutes)"
             Description: "Trigger job expiry scanner every 5 minutes"
 
   JobExpiryProcessorFunction:
@@ -579,10 +768,10 @@ Resources:
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: !Ref JobNotificationsTopic
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         ExpiryQueue:
           Type: SQS
@@ -596,7 +785,7 @@ Resources:
       FunctionName: !Sub "${Environment}-JobTimeoutScanner"
       CodeUri: jobs/
       Handler: com.freelance.jobs.schedulers.JobTimeoutScanner::handleRequest
-      Timeout: 300  
+      Timeout: 300
       Environment:
         Variables:
           JOBS_TABLE_NAME: !Ref JobsTable
@@ -605,15 +794,15 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref JobsTable
         - Statement:
-          - Effect: Allow
-            Action:
-              - sqs:SendMessage
-            Resource: !GetAtt JobTimeoutQueue.Arn
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt JobTimeoutQueue.Arn
       Events:
         TimeoutSchedule:
           Type: Schedule
           Properties:
-            Schedule: "rate(2 minutes)"  
+            Schedule: "rate(2 minutes)"
             Description: "Trigger job timeout scanner every 2 minutes"
 
   JobTimeoutProcessorFunction:
@@ -628,10 +817,10 @@ Resources:
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
-          - Effect: Allow
-            Action:
-              - sns:Publish
-            Resource: !Ref JobNotificationsTopic
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         TimeoutQueue:
           Type: SQS
@@ -647,6 +836,8 @@ Resources:
     Properties:
       TableName: !Sub "UsersTable-${Environment}"
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -662,11 +853,20 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
 
   AccountsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub "AccountsTable-${Environment}"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -683,6 +883,13 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
 
   ###################################
   # SNS Topic for Job Alerts
@@ -984,6 +1191,23 @@ Resources:
                   - !Ref UserDeletionCleanupStateMachine
                   - !Ref UserOnboardingStateMachine
 
+  ## =========================
+  ## DynamoDB Backup Selection (After all tables are defined)
+  ## =========================
+  DynamoDBBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref DynamoDBBackupPlan
+      BackupSelection:
+        SelectionName: !Sub "${Environment}-DynamoDB-Tables"
+        IamRoleArn: !GetAtt BackupServiceRole.Arn
+        Resources:
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CategoriesTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${JobsTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ClaimsTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AccountsTable}"
+
 Outputs:
   ## Unified API Gateway Output
   FreelancePlatformApiUrl:
@@ -1096,3 +1320,34 @@ Outputs:
     Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=code&scope=email+openid+profile&redirect_uri=https://www.example.com/callback"
     Export:
       Name: !Sub "FreelancePlatform-HostedUiUrl-${Environment}"
+
+  ## Backup System Outputs
+  DynamoDBBackupVaultName:
+    Description: "DynamoDB Backup Vault Name"
+    Value: !Ref DynamoDBBackupVault
+    Export:
+      Name: !Sub "${Environment}-dynamodb-backup-vault"
+
+  DynamoDBBackupPlanName:
+    Description: "DynamoDB Backup Plan Name"
+    Value: !Ref DynamoDBBackupPlan
+    Export:
+      Name: !Sub "${Environment}-dynamodb-backup-plan"
+
+  CognitoBackupPrimaryTableName:
+    Description: "Primary Cognito User Pool Backup Table"
+    Value: !Ref CognitoBackupUserPoolTable
+    Export:
+      Name: !Sub "${Environment}-cognito-backup-primary-table"
+
+  CognitoBackupSecondaryTableName:
+    Description: "Secondary Cognito User Pool Backup Table"
+    Value: !Ref CognitoBackupUserPoolSecondaryTable
+    Export:
+      Name: !Sub "${Environment}-cognito-backup-secondary-table"
+
+#  CognitoBackupFunctionName:
+#    Description: "Cognito Backup Lambda Function Name"
+#    Value: !Ref CognitoBackupFunction
+#    Export:
+#      Name: !Sub "${Environment}-cognito-backup-function"
