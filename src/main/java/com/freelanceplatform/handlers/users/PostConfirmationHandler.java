@@ -28,11 +28,11 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
         
         // --- Add debug log here ---
         try {
-            String fullEventJson = objectMapper.writeValueAsString(event);
-            System.out.println("DEBUG - Full PostConfirmation event: " + fullEventJson);
-        } catch (Exception e) {
-            System.out.println("DEBUG - Could not serialize event: " + e.getMessage());
-            System.out.println("DEBUG - Fallback event.toString(): " + event.toString());
+            String fullEventJson = objectMapper.writeValueAsString( event );
+            System.out.println( "DEBUG - Full PostConfirmation event: " + fullEventJson );
+        } catch ( Exception e ) {
+            System.out.println( "DEBUG - Could not serialize event: " + e.getMessage() );
+            System.out.println( "DEBUG - Fallback event.toString(): " + event.toString() );
         }
         
         LambdaLogger logger = context.getLogger();
@@ -68,7 +68,7 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
                 
                 List<String> preferredJobCategories = getJobCategories( event );
                 
-                input.put( "preferredJobCategories", preferredJobCategories );
+                input.put( "jobCategoryIds", preferredJobCategories );
                 
                 String inputJson = objectMapper.writeValueAsString( input );
                 
@@ -89,14 +89,13 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
     }
     
     private List<String> getJobCategories (CognitoUserPoolPostConfirmationEvent event) {
-        // ✅ Get client metadata from Amplify signup
-        Map<String, String> clientMetadata = event.getRequest().getClientMetadata();
+        Map<String, String> userAttributes = event.getRequest().getUserAttributes();
         
-        if ( clientMetadata == null || !clientMetadata.containsKey( "job_category" ) ) {
+        if ( userAttributes == null || !userAttributes.containsKey( "custom:job_category_ids" ) ) {
             return Collections.emptyList();
         }
         
-        String rawValue = clientMetadata.get( "job_category" );
+        String rawValue = userAttributes.get( "custom:job_category_ids" );
         try {
             // Parse JSON array string into List<String>
             return objectMapper.readValue( rawValue, new TypeReference<>() {

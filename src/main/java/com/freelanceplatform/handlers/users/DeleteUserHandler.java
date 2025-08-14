@@ -4,6 +4,8 @@ package com.freelanceplatform.handlers.users;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.freelanceplatform.models.PaymentAccount;
 import com.freelanceplatform.models.User;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -25,6 +27,14 @@ public class DeleteUserHandler implements RequestHandler<Map<String, Object>, St
     @Override
     public String handleRequest (Map<String, Object> event, Context context) {
         LambdaLogger logger = context.getLogger();
+        ObjectMapper mapper = new ObjectMapper().enable( SerializationFeature.INDENT_OUTPUT );
+        
+        try {
+            String eventJson = mapper.writeValueAsString( event );
+            logger.log( "Incoming event:\n" + eventJson + "\n" );
+        } catch ( Exception e ) {
+            logger.log( "Failed to serialize event: " + e.getMessage() + "\n" );
+        }
         
         // Extract username (email) from EventBridge event
         Map<String, Object> detail = (Map<String, Object>) event.get( "detail" );
