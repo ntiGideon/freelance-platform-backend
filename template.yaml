@@ -173,6 +173,50 @@ Resources:
         - Key: Service
           Value: Jobs
 
+  PaymentRecordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-PaymentRecordsTable"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: paymentId
+          AttributeType: S
+        - AttributeName: jobId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: paymentDate
+          AttributeType: S
+      KeySchema:
+        - AttributeName: paymentId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: JobIdIndex
+          KeySchema:
+            - AttributeName: jobId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: UserIdIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: paymentDate
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: Payments
+
   ClaimsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -376,6 +420,7 @@ Resources:
         - Key: Service
           Value: CognitoBackup
 
+#### CognitoBackup
   CognitoBackupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -472,6 +517,42 @@ Resources:
       QueueName: !Sub "${Environment}-job-timeout-dlq.fifo"
       FifoQueue: true
       MessageRetentionPeriod: 1209600  # 14 days
+
+
+#### Payment Processing Lambda Function
+  PaymentProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-PaymentProcessor"
+      CodeUri: payment/
+      Handler: com.freelance.payment.PaymentProcessorHandler::handleRequest
+      Runtime: java17
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          PAYMENT_RECORDS_TABLE: !Ref PaymentRecordsTable
+          ACCOUNTS_TABLE: !Ref AccountsTable
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt PaymentRecordsTable.Arn
+                - !GetAtt AccountsTable.Arn
+      Events:
+        PaymentTrigger:
+          Type: CloudWatchEvent
+          Properties:
+            EventBusName: !Ref JobsEventBus
+            Pattern:
+              source: [ "jobs-service" ]
+              detail-type: [ "job.approved" ]
+
 
   ## =========================
   ## Categories Lambda Functions
@@ -1192,7 +1273,7 @@ Resources:
                   - !Ref UserOnboardingStateMachine
 
   ## =========================
-  ## DynamoDB Backup Selection (After all tables are defined)
+  ## DynamoDB Backup Selection
   ## =========================
   DynamoDBBackupSelection:
     Type: AWS::Backup::BackupSelection
@@ -1207,6 +1288,7 @@ Resources:
           - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ClaimsTable}"
           - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTable}"
           - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AccountsTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${PaymentRecordsTable}"
 
 Outputs:
   ## Unified API Gateway Output
@@ -1246,6 +1328,18 @@ Outputs:
     Value: !GetAtt JobsTable.Arn
     Export:
       Name: !Sub "${Environment}-jobs-table-arn"
+
+  PaymentRecordsTableName:
+    Description: "Payment Records DynamoDB Table Name"
+    Value: !Ref PaymentRecordsTable
+    Export:
+      Name: !Sub "${Environment}-payment-records-table-name"
+
+  PaymentRecordsTableArn:
+    Description: "Payment Records DynamoDB Table ARN"
+    Value: !GetAtt PaymentRecordsTable.Arn
+    Export:
+      Name: !Sub "${Environment}-payment-records-table-arn"
 
   ClaimsTableName:
     Description: "Claims DynamoDB Table Name"
