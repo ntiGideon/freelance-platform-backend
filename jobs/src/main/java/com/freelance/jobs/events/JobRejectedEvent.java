@@ -11,14 +11,15 @@ public record JobRejectedEvent(
     @JsonProperty("jobId") String jobId,
     @JsonProperty("ownerId") String ownerId,
     @JsonProperty("claimerId") String claimerId,
+    @JsonProperty("claimerEmail") String claimerEmail,  // From Cognito headers when available
     @JsonProperty("categoryId") String categoryId,
     @JsonProperty("jobName") String jobName,
     @JsonProperty("payAmount") BigDecimal payAmount,
     @JsonProperty("rejectedAt") String rejectedAt,
     @JsonProperty("rejectionReason") String rejectionReason) {
 
-  public JobRejectedEvent(String jobId, String ownerId, String claimerId, String categoryId, 
+  public JobRejectedEvent(String jobId, String ownerId, String claimerId, String claimerEmail, String categoryId, 
                          String jobName, BigDecimal payAmount, String rejectedAt, String rejectionReason) {
-    this("job.rejected", jobId, ownerId, claimerId, categoryId, jobName, payAmount, rejectedAt, rejectionReason);
+    this("job.rejected", jobId, ownerId, claimerId, claimerEmail, categoryId, jobName, payAmount, rejectedAt, rejectionReason);
   }
 }

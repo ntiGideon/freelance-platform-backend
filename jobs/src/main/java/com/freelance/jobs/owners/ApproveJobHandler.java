@@ -179,6 +179,7 @@ public class ApproveJobHandler
               job.jobId(),
               job.ownerId(),
               job.claimerId(),
+              null,  // claimerEmail not available when owner approves, will fallback to user table lookup
               job.categoryId(),
               job.name(),
               job.payAmount(),

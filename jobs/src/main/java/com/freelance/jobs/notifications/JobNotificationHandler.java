@@ -15,10 +15,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminGetUserRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminGetUserResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.UserNotFoundException;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.Body;
 import software.amazon.awssdk.services.ses.model.Content;
@@ -34,16 +35,16 @@ import software.amazon.awssdk.services.ses.model.SendEmailResponse;
 public class JobNotificationHandler implements RequestHandler<SNSEvent, Void> {
 
   private final SesClient sesClient;
-  private final DynamoDbClient dynamoDbClient;
+  private final CognitoIdentityProviderClient cognitoClient;
   private final ObjectMapper objectMapper;
-  private final String usersTableName;
+  private final String userPoolId;
   private final String fromEmail;
 
   public JobNotificationHandler() {
     this.sesClient = SesClient.create();
-    this.dynamoDbClient = DynamoDbClient.create();
+    this.cognitoClient = CognitoIdentityProviderClient.create();
     this.objectMapper = new ObjectMapper();
-    this.usersTableName = System.getenv("USERS_TABLE_NAME");
+    this.userPoolId = System.getenv("USER_POOL_ID");
     this.fromEmail = System.getenv("FROM_EMAIL_ADDRESS");
   }
 
@@ -96,13 +97,17 @@ public class JobNotificationHandler implements RequestHandler<SNSEvent, Void> {
   private void handleJobClaimedNotification(String message, Context context) throws Exception {
     JobClaimedEvent event = objectMapper.readValue(message, JobClaimedEvent.class);
 
-    // Send notification to job owner
+    // Send notification to job owner - must use Cognito lookup (owner email not in event)
     UserInfo ownerInfo = getUserInfo(event.ownerId());
     if (ownerInfo != null && ownerInfo.email() != null) {
       String subject = createJobClaimedSubject(event);
       String body = createJobClaimedBody(event);
       sendEmail(ownerInfo.email(), ownerInfo.name(), subject, body, context);
     }
+    
+    // Note: Claimer email is available in event.claimerEmail() - no additional lookup needed
+    context.getLogger().log("Job claimed notification sent. Claimer email available in event: " + 
+                           (event.claimerEmail() != null ? "Yes" : "No"));
   }
 
   private void handleJobSubmittedNotification(String message, Context context) throws Exception {
@@ -115,29 +120,47 @@ public class JobNotificationHandler implements RequestHandler<SNSEvent, Void> {
       String body = createJobSubmittedBody(event);
       sendEmail(ownerInfo.email(), ownerInfo.name(), subject, body, context);
     }
+    
+    // Note: Claimer email is now available directly in event.claimerEmail() if needed for future features
   }
 
   private void handleJobApprovedNotification(String message, Context context) throws Exception {
     JobApprovedEvent event = objectMapper.readValue(message, JobApprovedEvent.class);
 
-    // Send notification to job seeker
-    UserInfo seekerInfo = getUserInfo(event.claimerId());
-    if (seekerInfo != null && seekerInfo.email() != null) {
+    // Send notification to job seeker - use email from event if available, otherwise query user table
+    if (event.claimerEmail() != null && !event.claimerEmail().isEmpty()) {
+      // Use email from event (no user table query needed)
       String subject = createJobApprovedSubject(event);
       String body = createJobApprovedBody(event);
-      sendEmail(seekerInfo.email(), seekerInfo.name(), subject, body, context);
+      sendEmail(event.claimerEmail(), "User", subject, body, context);
+    } else {
+      // Fallback to user table lookup
+      UserInfo seekerInfo = getUserInfo(event.claimerId());
+      if (seekerInfo != null && seekerInfo.email() != null) {
+        String subject = createJobApprovedSubject(event);
+        String body = createJobApprovedBody(event);
+        sendEmail(seekerInfo.email(), seekerInfo.name(), subject, body, context);
+      }
     }
   }
 
   private void handleJobRejectedNotification(String message, Context context) throws Exception {
     JobRejectedEvent event = objectMapper.readValue(message, JobRejectedEvent.class);
 
-    // Send notification to job seeker
-    UserInfo seekerInfo = getUserInfo(event.claimerId());
-    if (seekerInfo != null && seekerInfo.email() != null) {
+    // Send notification to job seeker - use email from event if available, otherwise Cognito lookup
+    if (event.claimerEmail() != null && !event.claimerEmail().isEmpty()) {
+      // Use email from event (no Cognito lookup needed)
       String subject = createJobRejectedSubject(event);
       String body = createJobRejectedBody(event);
-      sendEmail(seekerInfo.email(), seekerInfo.name(), subject, body, context);
+      sendEmail(event.claimerEmail(), "User", subject, body, context);
+    } else {
+      // Fallback to Cognito lookup
+      UserInfo seekerInfo = getUserInfo(event.claimerId());
+      if (seekerInfo != null && seekerInfo.email() != null) {
+        String subject = createJobRejectedSubject(event);
+        String body = createJobRejectedBody(event);
+        sendEmail(seekerInfo.email(), seekerInfo.name(), subject, body, context);
+      }
     }
   }
 
@@ -174,34 +197,47 @@ public class JobNotificationHandler implements RequestHandler<SNSEvent, Void> {
   }
 
   private UserInfo getUserInfo(String userId) {
-    if (usersTableName == null) {
-      throw new RuntimeException("USERS_TABLE_NAME environment variable is not set");
+    if (userPoolId == null) {
+      throw new RuntimeException("USER_POOL_ID environment variable is not set");
     }
 
     try {
-      GetItemRequest getItemRequest =
-          GetItemRequest.builder()
-              .tableName(usersTableName)
-              .key(Map.of("userId", AttributeValue.builder().s(userId).build()))
-              .build();
+      AdminGetUserRequest getUserRequest = AdminGetUserRequest.builder()
+          .userPoolId(userPoolId)
+          .username(userId)  // In Cognito, userId is the username (sub claim)
+          .build();
 
-      GetItemResponse response = dynamoDbClient.getItem(getItemRequest);
-      if (response.hasItem()) {
-        Map<String, AttributeValue> item = response.item();
-        String email = getStringValue(item, "email");
-        String name = getStringValue(item, "name");
-        
-        if (email == null) {
-          throw new RuntimeException("User " + userId + " has no email address");
+      AdminGetUserResponse response = cognitoClient.adminGetUser(getUserRequest);
+      
+      // Extract email and name from Cognito user attributes
+      String email = null;
+      String givenName = null;
+      String familyName = null;
+      
+      for (AttributeType attribute : response.userAttributes()) {
+        switch (attribute.name()) {
+          case "email" -> email = attribute.value();
+          case "given_name" -> givenName = attribute.value();
+          case "family_name" -> familyName = attribute.value();
         }
-        
-        return new UserInfo(userId, email, name);
-      } else {
-        throw new RuntimeException("User not found: " + userId);
       }
+      
+      if (email == null) {
+        throw new RuntimeException("User " + userId + " has no email address in Cognito");
+      }
+      
+      // Construct display name
+      String displayName = "User";
+      if (givenName != null) {
+        displayName = familyName != null ? givenName + " " + familyName : givenName;
+      }
+      
+      return new UserInfo(userId, email, displayName);
 
+    } catch (UserNotFoundException e) {
+      throw new RuntimeException("User not found in Cognito User Pool: " + userId);
     } catch (Exception e) {
-      throw new RuntimeException("Failed to retrieve user info for " + userId + ": " + e.getMessage(), e);
+      throw new RuntimeException("Failed to retrieve user info from Cognito for " + userId + ": " + e.getMessage(), e);
     }
   }
 
@@ -478,10 +514,6 @@ public class JobNotificationHandler implements RequestHandler<SNSEvent, Void> {
     }
   }
 
-  private String getStringValue(Map<String, AttributeValue> item, String key) {
-    AttributeValue value = item.get(key);
-    return value != null && value.s() != null ? value.s() : null;
-  }
 
   private record UserInfo(String userId, String email, String name) {}
 }

@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.freelance.jobs.owners.*;
 import com.freelance.jobs.seekers.*;
+import com.freelance.jobs.mappers.RequestMapper;
 import java.util.Map;
 
 /**
@@ -24,10 +25,18 @@ public class JobRouter
 
       context.getLogger().log("Processing request: " + httpMethod + " " + path);
 
-      // Extract user ID from headers or context
-      String userId = extractUserId(input);
+      // Extract user info from headers (set by Cognito authorizer mapping template)
+      String userId = RequestMapper.extractUserIdFromContext(input, "user");
+      String userEmail = RequestMapper.extractUserEmailFromContext(input);
+      String userRole = RequestMapper.extractUserRoleFromContext(input);
+      
       if (userId == null) {
         return createErrorResponse(401, "Unauthorized: User ID not found");
+      }
+      
+      // Validate that user has USER role for job operations
+      if (!RequestMapper.isValidUserRole(userRole)) {
+        return createErrorResponse(403, "Forbidden: USER role required for job operations");
       }
 
       // Route to appropriate handler based on path
@@ -96,16 +105,6 @@ public class JobRouter
     }
   }
 
-  private String extractUserId(APIGatewayProxyRequestEvent input) {
-    Map<String, String> headers = input.getHeaders();
-    if (headers != null) {
-      String userId = headers.get("x-user-id");
-      if (userId != null && !userId.isEmpty()) {
-        return userId;
-      }
-    }
-    return null;
-  }
 
   private APIGatewayProxyResponseEvent createErrorResponse(int statusCode, String message) {
     return new APIGatewayProxyResponseEvent()

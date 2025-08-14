@@ -202,6 +202,7 @@ public class RejectJobHandler implements RequestHandler<APIGatewayProxyRequestEv
                     job.jobId(),
                     job.ownerId(),
                     job.claimerId(), // Use original claimer ID
+                    null, // claimerEmail not available when owner rejects, will fallback to Cognito lookup
                     job.categoryId(),
                     job.name(),
                     job.payAmount(),
