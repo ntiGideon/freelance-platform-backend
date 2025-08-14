@@ -9,7 +9,7 @@ Parameters:
   Environment:
     Type: String
     Default: dev
-    AllowedValues: [dev, prod]
+    AllowedValues: [dev, prod, staging-test]
     Description: Environment name
   
   UsersTableName:
@@ -35,7 +35,7 @@ Resources:
       EndpointConfiguration: REGIONAL
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-User-ID,X-User-Email,X-User-Type'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-User-ID,X-User-Email,X-User-Role'"
         AllowOrigin: "'*'"
         MaxAge: "'600'"
         AllowCredentials: false
@@ -47,6 +47,85 @@ Resources:
       Tags:
         Environment: !Ref Environment
         Project: FreelancePlatform
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+            IdentitySource: "$request.header.Authorization"
+            AuthorizationScopes: []
+      GatewayResponses:
+        UNAUTHORIZED:
+          StatusCode: 401
+          ResponseTemplates:
+            "application/json": '{"message": "Unauthorized"}'
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: !Sub "${Environment}-freelance-platform-api"
+          version: 1.0.0
+        paths:
+          "/job/{proxy+}":
+            x-amazon-apigateway-any-method:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobRouterFunction.Arn}/invocations"
+                requestTemplates:
+                  application/json: |
+                    {
+                      "headers": {
+                        #foreach($param in $input.params().header.keySet())
+                        "$param": "$util.escapeJavaScript($input.params().header.get($param))",
+                        #end
+                        "X-User-ID": "$context.authorizer.claims.sub",
+                        "X-User-Email": "$context.authorizer.claims.email",
+                        "X-User-Role": "$context.authorizer.claims['cognito:groups'][0]"
+                      },
+                      "body": $input.json('$'),
+                      "pathParameters": {
+                        #foreach($param in $input.params().path.keySet())
+                        "$param": "$util.escapeJavaScript($input.params().path.get($param))"
+                        #if($foreach.hasNext),#end
+                        #end
+                      },
+                      "queryStringParameters": {
+                        #foreach($param in $input.params().querystring.keySet())
+                        "$param": "$util.escapeJavaScript($input.params().querystring.get($param))"
+                        #if($foreach.hasNext),#end
+                        #end
+                      },
+                      "httpMethod": "$context.httpMethod",
+                      "path": "$context.resourcePath",
+                      "stage": "$context.stage"
+                    }
+          "/categories":
+            get:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetCategoriesFunction.Arn}/invocations"
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateCategoryFunction.Arn}/invocations"
+        components:
+          securitySchemes:
+            CognitoAuthorizer:
+              type: apiKey
+              name: Authorization
+              in: header
+              x-amazon-apigateway-authtype: cognito_user_pools
+              x-amazon-apigateway-authorizer:
+                type: cognito_user_pools
+                providerARNs:
+                  - !GetAtt UserPool.Arn
 
   ## =========================
   ## DynamoDB Tables
@@ -299,13 +378,6 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref CategoriesTable
-      Events:
-        CreateCategoryApi:
-          Type: Api
-          Properties:
-            RestApiId: !Ref FreelancePlatformApi
-            Path: /categories
-            Method: post
 
   GetCategoriesFunction:
     Type: AWS::Serverless::Function
@@ -319,13 +391,6 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref CategoriesTable
-      Events:
-        GetCategoriesApi:
-          Type: Api
-          Properties:
-            RestApiId: !Ref FreelancePlatformApi
-            Path: /categories
-            Method: get
 
   CategoryStreamProcessorFunction:
     Type: AWS::Serverless::Function
@@ -380,13 +445,31 @@ Resources:
             Action:
               - events:PutEvents
             Resource: !GetAtt JobsEventBus.Arn
-      Events:
-        JobApi:
-          Type: Api
-          Properties:
-            RestApiId: !Ref FreelancePlatformApi
-            Path: /job/{proxy+}
-            Method: ANY
+
+  ## Lambda Permissions for API Gateway
+  JobRouterInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref JobRouterFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*"
+
+  CreateCategoryInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CreateCategoryFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/POST/categories"
+
+  GetCategoriesInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GetCategoriesFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/GET/categories"
 
   ## =========================
   ## Event Processor Functions
@@ -421,7 +504,7 @@ Resources:
       Handler: com.freelance.jobs.notifications.JobNotificationHandler::handleRequest
       Environment:
         Variables:
-          USERS_TABLE_NAME: !Ref UsersTableName
+          USER_POOL_ID: !Ref UserPool
           FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
       Policies:
         - Statement:
@@ -433,8 +516,8 @@ Resources:
         - Statement:
           - Effect: Allow
             Action:
-              - dynamodb:GetItem
-            Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+              - cognito-idp:AdminGetUser
+            Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}"
       Events:
         NotificationTopic:
           Type: SNS
