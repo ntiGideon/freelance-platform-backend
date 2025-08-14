@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.freelanceplatform</groupId>
-    <artifactId>freelance-platform-backend</artifactId>
+    <artifactId>freelance-platform</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
