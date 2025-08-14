@@ -25,10 +25,10 @@ public class JobRouter
 
       context.getLogger().log("Processing request: " + httpMethod + " " + path);
 
-      // Extract user info from headers (set by Cognito authorizer mapping template)
-      String userId = RequestMapper.extractUserIdFromContext(input, "user");
-      String userEmail = RequestMapper.extractUserEmailFromContext(input);
-      String userRole = RequestMapper.extractUserRoleFromContext(input);
+      // Extract user info from API Gateway request context (Cognito authorizer claims)
+      String userId = RequestMapper.extractUserIdFromRequestContext(input, "user");
+      String userEmail = RequestMapper.extractUserEmailFromRequestContext(input);
+      String userRole = RequestMapper.extractUserRoleFromRequestContext(input);
       
       if (userId == null) {
         return createErrorResponse(401, "Unauthorized: User ID not found");
@@ -36,15 +36,21 @@ public class JobRouter
       
       // Validate that user has USER role for job operations
       if (!RequestMapper.isValidUserRole(userRole)) {
+        context.getLogger().log("Invalid user role: " + userRole);
         return createErrorResponse(403, "Forbidden: USER role required for job operations");
       }
 
+      context.getLogger().log("User validation passed. Routing request...");
+
       // Route to appropriate handler based on path
       if (path.startsWith("/job/seeker")) {
+        context.getLogger().log("Routing to seeker handler");
         return routeSeekerRequest(input, context, userId);
       } else if (path.startsWith("/job/owner")) {
+        context.getLogger().log("Routing to owner handler");
         return routeOwnerRequest(input, context, userId);
       } else {
+        context.getLogger().log("Path not found: " + path);
         return createErrorResponse(404, "Path not found: " + path);
       }
 
@@ -83,9 +89,14 @@ public class JobRouter
     String path = input.getPath();
     String method = input.getHttpMethod();
 
+    context.getLogger().log("Owner route - path: " + path + ", method: " + method);
+
     try {
       if (path.equals("/job/owner/create") && method.equals("POST")) {
-        return new CreateJobHandler().handleRequest(input, context);
+        context.getLogger().log("Calling CreateJobHandler...");
+        APIGatewayProxyResponseEvent response = new CreateJobHandler().handleRequest(input, context);
+        context.getLogger().log("CreateJobHandler completed");
+        return response;
       } else if (path.equals("/job/owner/list") && method.equals("GET")) {
         return new com.freelance.jobs.owners.ListJobsHandler().handleRequest(input, context);
       } else if (path.matches("/job/owner/view/[^/]+") && method.equals("GET")) {

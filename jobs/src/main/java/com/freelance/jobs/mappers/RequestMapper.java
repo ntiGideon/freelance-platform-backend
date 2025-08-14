@@ -2,6 +2,7 @@ package com.freelance.jobs.mappers;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import java.util.Map;
+import java.util.List;
 
 /**
  * Utility class for extracting common parameters from API Gateway request events
@@ -111,7 +112,7 @@ public class RequestMapper {
      * @return Owner ID
      */
     public static String extractOwnerIdFromContext(APIGatewayProxyRequestEvent input) {
-        return extractUserIdFromContext(input, "owner");
+        return extractUserIdFromRequestContext(input, "owner");
     }
 
     /**
@@ -121,7 +122,7 @@ public class RequestMapper {
      * @return Seeker ID
      */
     public static String extractSeekerIdFromContext(APIGatewayProxyRequestEvent input) {
-        return extractUserIdFromContext(input, "seeker");
+        return extractUserIdFromRequestContext(input, "seeker");
     }
 
     /**
@@ -149,5 +150,91 @@ public class RequestMapper {
      */
     public static String getQueryParameter(APIGatewayProxyRequestEvent input, String paramName) {
         return getQueryParameter(input, paramName, null);
+    }
+
+    // ===== NEW METHODS FOR API GATEWAY REQUEST CONTEXT =====
+
+    /**
+     * Extracts user ID from API Gateway request context (Cognito authorizer claims)
+     * This is the preferred method for getting user info from standard aws_proxy integration
+     * 
+     * @param input API Gateway request event
+     * @param userType Type of user (for compatibility, not used in context extraction)
+     * @return User ID from Cognito claims or null if not found
+     */
+    public static String extractUserIdFromRequestContext(APIGatewayProxyRequestEvent input, String userType) {
+        APIGatewayProxyRequestEvent.ProxyRequestContext requestContext = input.getRequestContext();
+        if (requestContext != null) {
+            APIGatewayProxyRequestEvent.RequestIdentity identity = requestContext.getIdentity();
+            if (identity != null) {
+                // Try to get from authorizer claims
+                Map<String, Object> authorizer = requestContext.getAuthorizer();
+                if (authorizer != null && authorizer.containsKey("claims")) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> claims = (Map<String, Object>) authorizer.get("claims");
+                    if (claims != null && claims.containsKey("sub")) {
+                        return (String) claims.get("sub");
+                    }
+                }
+            }
+        }
+        
+        // Fallback to header-based extraction for backward compatibility
+        return extractUserIdFromContext(input, userType);
+    }
+
+    /**
+     * Extracts user email from API Gateway request context (Cognito authorizer claims)
+     * 
+     * @param input API Gateway request event
+     * @return User email from Cognito claims or null if not found
+     */
+    public static String extractUserEmailFromRequestContext(APIGatewayProxyRequestEvent input) {
+        APIGatewayProxyRequestEvent.ProxyRequestContext requestContext = input.getRequestContext();
+        if (requestContext != null) {
+            Map<String, Object> authorizer = requestContext.getAuthorizer();
+            if (authorizer != null && authorizer.containsKey("claims")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> claims = (Map<String, Object>) authorizer.get("claims");
+                if (claims != null && claims.containsKey("email")) {
+                    return (String) claims.get("email");
+                }
+            }
+        }
+        
+        // Fallback to header-based extraction for backward compatibility
+        return extractUserEmailFromContext(input);
+    }
+
+    /**
+     * Extracts user role from API Gateway request context (Cognito authorizer claims)
+     * 
+     * @param input API Gateway request event
+     * @return User role from Cognito groups or null if not found
+     */
+    public static String extractUserRoleFromRequestContext(APIGatewayProxyRequestEvent input) {
+        APIGatewayProxyRequestEvent.ProxyRequestContext requestContext = input.getRequestContext();
+        if (requestContext != null) {
+            Map<String, Object> authorizer = requestContext.getAuthorizer();
+            if (authorizer != null && authorizer.containsKey("claims")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> claims = (Map<String, Object>) authorizer.get("claims");
+                if (claims != null && claims.containsKey("cognito:groups")) {
+                    Object groups = claims.get("cognito:groups");
+                    if (groups instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<String> groupsList = (List<String>) groups;
+                        if (!groupsList.isEmpty()) {
+                            return groupsList.get(0); // Return first group
+                        }
+                    } else if (groups instanceof String) {
+                        return (String) groups;
+                    }
+                }
+            }
+        }
+        
+        // Fallback to header-based extraction for backward compatibility
+        return extractUserRoleFromContext(input);
     }
 }
