@@ -1346,8 +1346,8 @@ Outputs:
     Export:
       Name: !Sub "${Environment}-cognito-backup-secondary-table"
 
-#  CognitoBackupFunctionName:
-#    Description: "Cognito Backup Lambda Function Name"
-#    Value: !Ref CognitoBackupFunction
-#    Export:
-#      Name: !Sub "${Environment}-cognito-backup-function"
+  CognitoBackupFunctionName:
+    Description: "Cognito Backup Lambda Function Name"
+    Value: !Ref CognitoBackupFunction
+    Export:
+      Name: !Sub "${Environment}-cognito-backup-function"
