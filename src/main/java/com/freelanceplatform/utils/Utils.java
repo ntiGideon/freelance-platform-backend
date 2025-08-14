@@ -13,10 +13,9 @@ public class Utils {
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final Logger log = LoggerFactory.getLogger( Utils.class );
     
-    private Utils () {
-    } // prevent instantiation
+    private Utils () {} // prevent instantiation
     
-    public static List<String> parsePreferredJobCategories (Object categoriesObj) {
+    public static List<String> parsePreferredJobCategoryIds (Object categoriesObj) {
         if ( categoriesObj == null ) return List.of();
         
         try {
@@ -32,7 +31,7 @@ public class Utils {
                         .collect( Collectors.toList() );
             }
         } catch ( Exception e ) {
-            log.error( e.getMessage() );
+            log.error("Failed to parse job category IDs: {}", e.getMessage());
         }
         return List.of();
     }
