@@ -68,4 +68,32 @@ public class User implements Serializable {
     public void setJobCategoryIds (List<String> jobCategoryIds) {
         this.jobCategoryIds = jobCategoryIds;
     }
+    
+    public String getCognitoId () {
+        return cognitoId;
+    }
+    
+    public String getFirstname () {
+        return firstname;
+    }
+    
+    public String getMiddlename () {
+        return middlename;
+    }
+    
+    public String getLastname () {
+        return lastname;
+    }
+    
+    public String getPhonenumber () {
+        return phonenumber;
+    }
+    
+    public List<String> getJobCategoryIds () {
+        return jobCategoryIds;
+    }
+    
+    public String getRole () {
+        return role;
+    }
 }
