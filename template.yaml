@@ -1071,7 +1071,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "PostConfirmationLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.PostConfirmationHandler::handleRequest
       Policies:
         - Statement:
@@ -1107,7 +1107,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "GenerateUserIdLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.GenerateUserIdHandler::handleRequest
       Environment:
         Variables:
@@ -1117,7 +1117,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "SaveUserDataLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.SaveUserDataHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
@@ -1131,7 +1131,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "CreateAccountLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.CreateAccountHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
@@ -1145,7 +1145,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "SubscribeUserToSNSLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.SubscribeUserToSNSHandler::handleRequest
       Policies:
         - Statement:
@@ -1163,7 +1163,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "DeleteUserHandler-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.DeleteUserHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
