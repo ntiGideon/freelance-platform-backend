@@ -30,7 +30,6 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         
         // Map the incoming payload to a User object
         User user = new User();
-        user.setCognitoId( userId);
         user.setUserId( userId );
         user.setEmail( (String) input.get( "email" ) );
         user.setFirstname( (String) input.get( "firstname" ) );

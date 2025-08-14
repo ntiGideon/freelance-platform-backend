@@ -15,8 +15,9 @@ public class GenerateUserIdHandler implements RequestHandler<Map<String,Object>,
         logger.log("GenerateUserIdHandler invoked");
         
         // Generate unique userId
-        String userId = (String) input.get("userId");
+        String userId = (String) input.get("cognitoId");
         
+        input.put("userId", userId);
         logger.log("Generated userId: " + userId);
         
         return input;

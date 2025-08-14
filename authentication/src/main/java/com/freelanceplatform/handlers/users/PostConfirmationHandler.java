@@ -58,7 +58,6 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
                 
                 String cognitoSub = event.getRequest().getUserAttributes().get( "sub" );
                 
-                input.put( "userId", cognitoSub );
                 input.put( "cognitoId", cognitoSub );
                 input.put( "email", event.getRequest().getUserAttributes().get( "email" ) );
                 input.put( "firstname", event.getRequest().getUserAttributes().get( "given_name" ) );

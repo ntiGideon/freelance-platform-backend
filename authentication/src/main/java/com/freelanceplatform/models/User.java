@@ -13,7 +13,6 @@ public class User implements Serializable {
     @Serial
     private static final long serialVersionUID = 4517148380012406558L;
     
-    private String cognitoId;
     private String userId;
     private String email;
     private String firstname;
@@ -26,10 +25,6 @@ public class User implements Serializable {
     @DynamoDbPartitionKey
     public String getUserId() {
         return userId;
-    }
-    
-    public void setCognitoId(String cognitoId) {
-        this.cognitoId = cognitoId;
     }
     
     public void setUserId(String userId) {
@@ -67,10 +62,6 @@ public class User implements Serializable {
     
     public void setJobCategoryIds (List<String> jobCategoryIds) {
         this.jobCategoryIds = jobCategoryIds;
-    }
-    
-    public String getCognitoId () {
-        return cognitoId;
     }
     
     public String getFirstname () {
