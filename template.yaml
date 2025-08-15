@@ -711,6 +711,41 @@ Resources:
           Properties:
             Topic: !Ref JobNotificationsTopic
 
+  ###### Payment Notification Handler
+  PaymentNotificationHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-PaymentNotificationHandler"
+      CodeUri: payment/
+      Handler: com.freelance.payment.notifications.PaymentNotificationHandler::handleRequest
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTableName
+          FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
+      Events:
+        PaymentNotificationTopic:
+          Type: SNS
+          Properties:
+            Topic: !Ref JobNotificationsTopic
+
   ## Event Processors - Forward to Centralized Topic
   JobClaimedProcessorFunction:
     Type: AWS::Serverless::Function
