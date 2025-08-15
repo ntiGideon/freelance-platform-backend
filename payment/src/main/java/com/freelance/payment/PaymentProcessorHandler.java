@@ -1,13 +1,15 @@
 package com.freelance.payment;
 
-
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.ScheduledEvent;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.freelance.payment.events.PaymentCompletedEvent;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -17,15 +19,19 @@ import java.util.UUID;
 public class PaymentProcessorHandler implements RequestHandler<ScheduledEvent, Void> {
 
     private final DynamoDbClient dynamoDbClient;
+    private final SnsClient snsClient;
     private final ObjectMapper objectMapper;
     private final String paymentRecordsTable;
     private final String accountsTable;
+    private final String notificationTopicArn;
 
     public PaymentProcessorHandler() {
         this.dynamoDbClient = DynamoDbClient.create();
+        this.snsClient = SnsClient.create();
         this.objectMapper = new ObjectMapper();
         this.paymentRecordsTable = System.getenv("PAYMENT_RECORDS_TABLE");
         this.accountsTable = System.getenv("ACCOUNTS_TABLE");
+        this.notificationTopicArn = System.getenv("NOTIFICATION_TOPIC_ARN");
     }
 
     @Override
@@ -36,14 +42,14 @@ public class PaymentProcessorHandler implements RequestHandler<ScheduledEvent, V
                     JobApprovedEvent.class
             );
 
-            context.getLogger().log("Processing payment for job: " + jobApprovedEvent.jobId());
-
-            createPaymentRecord(jobApprovedEvent, context);
-
+            // Process payment
+            String paymentId = createPaymentRecord(jobApprovedEvent, context);
             updateAccountBalance(jobApprovedEvent, context);
 
-            context.getLogger().log("Payment processed successfully for job: " + jobApprovedEvent.jobId());
+            // Send payment notification
+            sendPaymentNotification(paymentId, jobApprovedEvent, context);
 
+            context.getLogger().log("Payment processed successfully for job: " + jobApprovedEvent.jobId());
             return null;
         } catch (Exception e) {
             context.getLogger().log("Error processing payment: " + e.getMessage());
@@ -51,7 +57,8 @@ public class PaymentProcessorHandler implements RequestHandler<ScheduledEvent, V
         }
     }
 
-    private void createPaymentRecord(JobApprovedEvent event, Context context) {
+
+    private String createPaymentRecord(JobApprovedEvent event, Context context) {
         String paymentId = UUID.randomUUID().toString();
         String paymentDate = Instant.now().toString();
 
@@ -65,29 +72,48 @@ public class PaymentProcessorHandler implements RequestHandler<ScheduledEvent, V
         item.put("categoryId", AttributeValue.builder().s(event.categoryId()).build());
         item.put("ownerId", AttributeValue.builder().s(event.ownerId()).build());
 
-        PutItemRequest request = PutItemRequest.builder()
+        dynamoDbClient.putItem(PutItemRequest.builder()
                 .tableName(paymentRecordsTable)
                 .item(item)
-                .build();
-
-        dynamoDbClient.putItem(request);
+                .build());
 
         context.getLogger().log("Created payment record: " + paymentId);
+        return paymentId;
     }
 
     private void updateAccountBalance(JobApprovedEvent event, Context context) {
-        UpdateItemRequest request = UpdateItemRequest.builder()
+        dynamoDbClient.updateItem(UpdateItemRequest.builder()
                 .tableName(accountsTable)
                 .key(Map.of("userId", AttributeValue.builder().s(event.claimerId()).build()))
                 .updateExpression("SET balance = balance + :amount")
                 .expressionAttributeValues(
                         Map.of(":amount", AttributeValue.builder().n(event.payAmount().toString()).build())
                 )
-                .build();
-
-        dynamoDbClient.updateItem(request);
-
-        context.getLogger().log("Updated account balance for user: " + event.claimerId());
+                .build());
     }
 
+    private void sendPaymentNotification(String paymentId, JobApprovedEvent event, Context context) {
+        try {
+            PaymentCompletedEvent paymentEvent = new PaymentCompletedEvent(
+                    paymentId,
+                    event.jobId(),
+                    event.jobName(),
+                    event.claimerId(),
+                    event.payAmount(),
+                    Instant.now().toString(),
+                    event.ownerId()
+            );
+
+            String eventJson = objectMapper.writeValueAsString(paymentEvent);
+
+            snsClient.publish(PublishRequest.builder()
+                    .topicArn(notificationTopicArn)
+                    .message(eventJson)
+                    .build());
+
+            context.getLogger().log("Payment notification sent for job: " + event.jobId());
+        } catch (Exception e) {
+            context.getLogger().log("Failed to send payment notification: " + e.getMessage());
+        }
+    }
 }
