@@ -18,7 +18,6 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 parameter_overrides = "Environment=\"dev\" UsersTableName=\"dev-UsersTable\" BackupRetentionDays=\"35\" BackupScheduleExpression=\"cron(0 2 * * ? *)\""
 s3_bucket = "aws-sam-cli-managed-dev-pipeline-artifactsbucket-elitekaycy"
-resolve_s3 = true
 s3_prefix = "freelance-platform-dev"
 image_repositories = []
 
