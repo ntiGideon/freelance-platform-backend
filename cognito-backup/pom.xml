@@ -6,11 +6,11 @@
 
     <groupId>com.freelance</groupId>
     <artifactId>freelance-platform</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Freelance Platform</name>
-    <description>Serverless freelance job platform</description>
+    <name>Freelance Platform Backend - Cognito Backup</name>
+    <description>Serverless Backend for Freelance Job Platform - Cognito Backup</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
