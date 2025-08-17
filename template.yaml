@@ -1044,7 +1044,7 @@ Resources:
         - Name: middle_name
           AttributeDataType: String
           Mutable: true
-        - Name: job_category
+        - Name: job_category_ids
           AttributeDataType: String
           Mutable: true
         - Name: phone_number
