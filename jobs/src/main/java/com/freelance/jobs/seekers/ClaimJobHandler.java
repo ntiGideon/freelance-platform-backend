@@ -46,6 +46,7 @@ public class ClaimJobHandler implements RequestHandler<APIGatewayProxyRequestEve
         try {
             String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
             String seekerId = RequestMapper.extractSeekerIdFromContext(input);
+            String seekerEmail = RequestMapper.extractUserEmailFromRequestContext(input);
 
             if (jobId == null) {
                 return ResponseUtil.createErrorResponse(400, "Job ID not found in path");
@@ -60,8 +61,8 @@ public class ClaimJobHandler implements RequestHandler<APIGatewayProxyRequestEve
             // Atomically claim the job
             JobEntity claimedJob = claimJob(jobId, seekerId, context);
             
-            // Publish job.claimed event
-            publishJobClaimedEvent(claimedJob, context);
+            // Publish job.claimed event with claimer email
+            publishJobClaimedEvent(claimedJob, seekerEmail, context);
 
             return ResponseUtil.createSuccessResponse(200, Map.of(
                     "message", "Job claimed successfully",
@@ -181,12 +182,13 @@ public class ClaimJobHandler implements RequestHandler<APIGatewayProxyRequestEve
         }
     }
 
-    private void publishJobClaimedEvent(JobEntity job, Context context) {
+    private void publishJobClaimedEvent(JobEntity job, String claimerEmail, Context context) {
         try {
             JobClaimedEvent event = new JobClaimedEvent(
                     job.jobId(),
                     job.ownerId(),
                     job.claimerId(),
+                    claimerEmail,  // From Cognito headers
                     job.categoryId(),
                     job.name(),
                     job.payAmount(),
