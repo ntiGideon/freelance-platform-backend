@@ -44,7 +44,7 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       Name: !Sub "${Environment}-freelance-platform-api"
-      StageName: Prod
+      StageName: !Sub "${Environment}"
       EndpointConfiguration: REGIONAL
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
