@@ -45,7 +45,7 @@ public class SubmitJobHandler implements RequestHandler<APIGatewayProxyRequestEv
         try {
             String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
             String seekerId = RequestMapper.extractSeekerIdFromContext(input);
-            String seekerEmail = RequestMapper.extractUserEmailFromContext(input);
+            String seekerEmail = RequestMapper.extractUserEmailFromRequestContext(input);
 
             if (jobId == null) {
                 return ResponseUtil.createErrorResponse(400, "Job ID not found in path");

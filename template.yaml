@@ -74,8 +74,8 @@ Resources:
                 uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobRouterFunction.Arn}/invocations"
           "/categories":
             get:
-              security:
-                - CognitoAuthorizer: []
+              x-amazon-apigateway-auth: 
+                type: NONE
               x-amazon-apigateway-integration:
                 type: aws_proxy
                 httpMethod: POST
