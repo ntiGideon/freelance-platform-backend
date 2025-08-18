@@ -4,12 +4,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.freelanceplatform</groupId>
-    <artifactId>freelance-platform-backend</artifactId>
+    <artifactId>freelance-platform</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Freelance Platform Backend</name>
-    <description>Serverless Backend for Freelance Platform</description>
+    <name>Freelance Platform Backend - Authentication</name>
+    <description>Serverless Backend for Freelance Job Platform - Authentication</description>
 
     <properties>
         <java.version>17</java.version>

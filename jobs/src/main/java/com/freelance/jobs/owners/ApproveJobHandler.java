@@ -42,8 +42,7 @@ public class ApproveJobHandler
   }
 
   @Override
-  public APIGatewayProxyResponseEvent handleRequest(
-      APIGatewayProxyRequestEvent input, Context context) {
+  public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
     try {
       String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
       String ownerId = RequestMapper.extractOwnerIdFromContext(input);

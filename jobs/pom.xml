@@ -6,11 +6,11 @@
 
     <groupId>com.freelance</groupId>
     <artifactId>freelance-jobs</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Freelance Jobs Service</name>
-    <description>Job management and notifications service</description>
+    <name>Freelance Platform Backend - Jobs</name>
+    <description>Serverless Backend for Freelance Job Platform - Jobs</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>

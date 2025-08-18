@@ -9,8 +9,8 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Freelance Platform Backend - Categories</name>
-    <description>Serverless Backend for Freelance Job Platform - Categories</description>
+    <name>Freelance Platform Backend - Payment</name>
+    <description>Serverless Backend for Freelance Job Platform - Payment</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -23,6 +23,7 @@
     </properties>
 
     <dependencies>
+        <!-- AWS Lambda Java Core -->
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-core</artifactId>
@@ -50,14 +51,6 @@
             <version>${aws.sdk.version}</version>
         </dependency>
 
-        <!-- AWS SDK v2 - EventBridge -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>eventbridge</artifactId>
-            <version>${aws.sdk.version}</version>
-        </dependency>
-
-        <!-- AWS SDK v2 - SES -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ses</artifactId>
@@ -68,6 +61,13 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sqs</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+
+        <!-- AWS SDK v2 - Step Functions -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sfn</artifactId>
             <version>${aws.sdk.version}</version>
         </dependency>
 
@@ -119,7 +119,6 @@
             <version>5.5.0</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>

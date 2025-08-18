@@ -4,7 +4,6 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.freelanceplatform.models.User;
-import com.freelanceplatform.utils.Utils;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
@@ -22,19 +21,15 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
     @Override
     public Map<String, Object> handleRequest (Map<String, Object> input, Context context) {
         
-        DynamoDbTable<User> userTable = dynamoDbClient.table( USERS_TABLE, TableSchema.fromBean( User.class ) );
-        
         LambdaLogger logger = context.getLogger();
+        DynamoDbTable<User> userTable = dynamoDbClient.table( USERS_TABLE, TableSchema.fromBean( User.class ) );
         
         // Get userId
         String userId = (String) input.get( "userId" );
         if ( userId == null ) throw new IllegalArgumentException( "userId missing in input" );
         
-        System.out.println("preferred jobs" + input.get("preferredJobCategories"));
-        
         // Map the incoming payload to a User object
         User user = new User();
-        user.setCognitoId( (String) input.get( "sub" ) );
         user.setUserId( userId );
         user.setEmail( (String) input.get( "email" ) );
         user.setFirstname( (String) input.get( "firstname" ) );
@@ -42,10 +37,7 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         user.setLastname( (String) input.get( "lastname" ) );
         user.setPhonenumber( (String) input.getOrDefault( "phonenumber", "" ) );
         user.setRole( USER );
-        
-        List<String> categories = Utils.parsePreferredJobCategories( input.get( "preferredJobCategories" ) );
-        
-        user.setPreferredJobCategories( categories );
+        user.setJobCategoryIds( (List<String>) input.get( "jobCategoryIds" ) );
         
         // Save to DynamoDB
         userTable.putItem( user );
