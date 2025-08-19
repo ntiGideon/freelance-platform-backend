@@ -1248,6 +1248,12 @@ Resources:
                 - sns:Subscribe
                 - sns:SetSubscriptionAttributes
               Resource: !Ref JobAlertsTopic
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:BatchGetItem
+              Resource: !GetAtt CategoriesTable.Arn
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref JobAlertsTopic
