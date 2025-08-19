@@ -1246,8 +1246,7 @@ Resources:
             - Effect: Allow
               Action:
                 - sns:Subscribe
-                - sns:SetSubscriptionAttributes
-              Resource: !Ref JobAlertsTopic
+              Resource: "*"
         - Statement:
             - Effect: Allow
               Action:
@@ -1256,7 +1255,6 @@ Resources:
               Resource: !GetAtt CategoriesTable.Arn
       Environment:
         Variables:
-          SNS_TOPIC_ARN: !Ref JobAlertsTopic
           CATEGORIES_TABLE: !Ref CategoriesTable
           ENVIRONMENT: !Ref Environment
 
