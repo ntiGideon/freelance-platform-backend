@@ -89,7 +89,10 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
     }
     
     private List<String> batchGetCategoryNames (List<String> categoryIds) {
+        System.out.println("Using DynamoDB table: " + CATEGORIES_TABLE);
         DynamoDbTable<JobCategory> jobCategoryTable = dynamoDbClient.table( CATEGORIES_TABLE, TableSchema.fromBean( JobCategory.class ) );
+
+        System.out.println("Mapped table resource: " + jobCategoryTable.tableName());
         
         ReadBatch.Builder<JobCategory> readBatchBuilder = ReadBatch.builder( JobCategory.class )
                 .mappedTableResource( jobCategoryTable );
