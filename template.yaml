@@ -1251,6 +1251,7 @@ Resources:
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref JobAlertsTopic
+          CATEGORIES_TABLE: !Ref CategoriesTable
           ENVIRONMENT: !Ref Environment
 
   DeleteUserHandler:
