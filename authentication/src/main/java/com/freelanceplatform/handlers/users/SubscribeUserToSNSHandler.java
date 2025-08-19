@@ -38,6 +38,8 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
         if ( email == null || topicArn == null ) throw new IllegalArgumentException( "Missing email or SNS_TOPIC_ARN" );
         
         List<String> categoryIds = Utils.parsePreferredJobCategoryIds( input.get( "jobCategoryIds" ) );
+
+        logger.log("Category IDs to fetch: " + categoryIds);
         
         if ( categoryIds == null || categoryIds.isEmpty() ) {
             logger.log( "No jobs to subscribe to" );
@@ -93,9 +95,12 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
                 .mappedTableResource( jobCategoryTable );
         
         // Add each key individually
-        categoryIds.forEach( id ->
-                readBatchBuilder.addGetItem( Key.builder().partitionValue( id ).build() )
-        );
+        categoryIds.stream()
+        .filter(id -> id != null && !id.isBlank())
+        .forEach(id -> {
+            System.out.println("Fetching category with ID: " + id);
+            readBatchBuilder.addGetItem(Key.builder().partitionValue(id).build());
+        });
         
         BatchGetItemEnhancedRequest batchRequest = BatchGetItemEnhancedRequest.builder()
                 .readBatches( readBatchBuilder.build() )
