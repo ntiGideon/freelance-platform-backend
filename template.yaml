@@ -1356,12 +1356,48 @@ Resources:
                 - cognito-idp:AdminListGroupsForUser
               Resource: !GetAtt UserPool.Arn
       Events:
-        AdminJobApi:
+        AdminJobsPOST:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin/jobs/{proxy+}
-            Method: ANY
+            Path: /admin/jobs
+            Method: POST
+        AdminJobsGET:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/jobs
+            Method: GET
+        AdminJobsStatisticsGET:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/jobs/statistics
+            Method: GET
+        AdminJobGET:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/jobs/{jobId}
+            Method: GET
+        AdminJobApprovePOST:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/jobs/{jobId}/approve
+            Method: POST
+        AdminJobRejectPOST:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/jobs/{jobId}/reject
+            Method: POST
+        AdminJobRelistPOST:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/jobs/{jobId}/relist
+            Method: POST
 
 Outputs:
   ## Unified API Gateway Output
