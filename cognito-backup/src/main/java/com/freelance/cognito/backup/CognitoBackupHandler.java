@@ -38,14 +38,11 @@ public class CognitoBackupHandler implements RequestHandler<ScheduledEvent, Void
     @Override
     public Void handleRequest(ScheduledEvent event, Context context) {
         try {
-            // Get all users from Cognito
             ListUsersResult result = cognitoClient.listUsers(new ListUsersRequest()
                     .withUserPoolId(userPoolId));
 
-            // Calculate TTL timestamp (current time + days in seconds)
             long ttlTimestamp = Instant.now().plusSeconds(ttlDays * 24 * 60 * 60).getEpochSecond();
 
-            // Backup users to both DynamoDB tables
             for (UserType user : result.getUsers()) {
                 Map<String, Object> userData = new HashMap<>();
                 userData.put("userId", user.getUsername());
@@ -62,11 +59,9 @@ public class CognitoBackupHandler implements RequestHandler<ScheduledEvent, Void
                 userData.put("backupTimestamp", System.currentTimeMillis());
                 userData.put("ttl", ttlTimestamp);
 
-                // Write to primary table
                 Table primaryTable = dynamoDB.getTable(primaryTableName);
                 primaryTable.putItem(Item.fromMap(userData));
 
-                // Write to secondary table
                 Table secondaryTable = dynamoDB.getTable(secondaryTableName);
                 secondaryTable.putItem(Item.fromMap(userData));
             }
