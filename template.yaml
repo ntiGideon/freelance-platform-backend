@@ -1360,43 +1360,43 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin
+            Path: /admin/job/create
             Method: POST
         AdminJobsGET:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin
+            Path: /admin/job
             Method: GET
         AdminJobsStatisticsGET:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin/statistics
+            Path: /admin/job/statistics
             Method: GET
         AdminJobGET:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin/{jobId}
+            Path: /admin/job/{jobId}
             Method: GET
         AdminJobApprovePOST:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin/{jobId}/approve
+            Path: /admin/job/{jobId}/approve
             Method: POST
         AdminJobRejectPOST:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin/{jobId}/reject
+            Path: /admin/job/{jobId}/reject
             Method: POST
         AdminJobRelistPOST:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin/{jobId}/relist
+            Path: /admin/job/{jobId}/relist
             Method: POST
 
 Outputs:
