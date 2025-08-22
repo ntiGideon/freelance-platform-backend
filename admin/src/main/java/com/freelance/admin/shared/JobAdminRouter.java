@@ -37,7 +37,7 @@ public class JobAdminRouter
       }
 
       // Route to appropriate handler based on path
-      if (path.startsWith("/admin/jobs")) {
+      if (path.startsWith("/admin")) {
         return routeAdminRequest(input, context, userId);
       } else {
         return createErrorResponse(404, "Path not found: " + path);
@@ -59,23 +59,23 @@ public class JobAdminRouter
 
     try {
       // Admin job creation
-      if (path.equals("/admin/jobs") && method.equals("POST")) {
+      if (path.equals("/admin") && method.equals("POST")) {
         return new CreateJobHandler().handleRequest(input, context);
 
         // Admin job listing and statistics
-      } else if (path.equals("/admin/jobs") && method.equals("GET")) {
+      } else if (path.equals("/admin") && method.equals("GET")) {
         return new ListAllJobsHandler().handleRequest(input, context);
-      } else if (path.equals("/admin/jobs/statistics") && method.equals("GET")) {
+      } else if (path.equals("/admin/statistics") && method.equals("GET")) {
         return new JobStatisticsHandler().handleRequest(input, context);
 
         // Admin individual job operations
-      } else if (path.matches("/admin/jobs/[^/]+") && method.equals("GET")) {
+      } else if (path.matches("/admin/[^/]+") && method.equals("GET")) {
         return new ViewJobHandler().handleRequest(input, context);
-      } else if (path.matches("/admin/jobs/[^/]+/approve") && method.equals("POST")) {
+      } else if (path.matches("/admin/[^/]+/approve") && method.equals("POST")) {
         return new ApproveJobHandler().handleRequest(input, context);
-      } else if (path.matches("/admin/jobs/[^/]+/reject") && method.equals("POST")) {
+      } else if (path.matches("/admin/[^/]+/reject") && method.equals("POST")) {
         return new RejectJobHandler().handleRequest(input, context);
-      } else if (path.matches("/admin/jobs/[^/]+/relist") && method.equals("POST")) {
+      } else if (path.matches("/admin/[^/]+/relist") && method.equals("POST")) {
         return new RelistJobHandler().handleRequest(input, context);
 
       } else {
