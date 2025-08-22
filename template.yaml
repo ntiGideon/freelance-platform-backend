@@ -47,10 +47,10 @@ Resources:
       StageName: !Sub "${Environment}"
       EndpointConfiguration: REGIONAL
       Cors:
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-User-ID,X-User-Email,X-User-Role'"
-        AllowOrigin: "'*'"
-        MaxAge: "'600'"
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-User-ID,X-User-Email,X-User-Role,Accept,Accept-Language,Content-Language,X-Requested-With'"
+        AllowOrigin: "'http://localhost:4200'"
+        MaxAge: "'86400'"
         AllowCredentials: false
       BinaryMediaTypes:
         - "*/*"
