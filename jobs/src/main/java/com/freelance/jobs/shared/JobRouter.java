@@ -25,6 +25,20 @@ public class JobRouter
 
       context.getLogger().log("Processing request: " + httpMethod + " " + path);
 
+      // Handle OPTIONS preflight requests for CORS
+      if ("OPTIONS".equals(httpMethod)) {
+        context.getLogger().log("Handling OPTIONS preflight request");
+        return new APIGatewayProxyResponseEvent()
+            .withStatusCode(200)
+            .withHeaders(Map.of(
+                "Access-Control-Allow-Origin", "http://localhost:4200",
+                "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+                "Access-Control-Allow-Headers", "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With",
+                "Access-Control-Max-Age", "86400"
+            ))
+            .withBody("");
+      }
+
       // Extract user info from API Gateway request context (Cognito authorizer claims)
       String userId = RequestMapper.extractUserIdFromRequestContext(input, "user");
       String userEmail = RequestMapper.extractUserEmailFromRequestContext(input);
