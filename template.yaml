@@ -1246,11 +1246,16 @@ Resources:
             - Effect: Allow
               Action:
                 - sns:Subscribe
-                - sns:SetSubscriptionAttributes
-              Resource: !Ref JobAlertsTopic
+              Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:BatchGetItem
+              Resource: !GetAtt CategoriesTable.Arn
       Environment:
         Variables:
-          SNS_TOPIC_ARN: !Ref JobAlertsTopic
+          CATEGORIES_TABLE: !Ref CategoriesTable
           ENVIRONMENT: !Ref Environment
 
   DeleteUserHandler:
@@ -1383,6 +1388,80 @@ Resources:
           - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTable}"
           - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AccountsTable}"
           - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${PaymentRecordsTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CognitoBackupUserPoolTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CognitoBackupUserPoolSecondaryTable}"
+
+  JobAdminRouterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobAdminRouter"
+      CodeUri: admin/
+      Handler: com.freelance.admin.shared.JobAdminRouter::handleRequest
+      Timeout: 60
+      Environment:
+        Variables:
+          JOBS_TABLE_NAME: !Ref JobsTable
+          CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+          EVENT_BUS_NAME: !Ref JobsEventBus
+          USER_POOL_ID: !Ref UserPool
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref CategoriesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !GetAtt JobsEventBus.Arn
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminListGroupsForUser
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        AdminJobsPOST:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin
+            Method: POST
+        AdminJobsGET:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin
+            Method: GET
+        AdminJobsStatisticsGET:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/statistics
+            Method: GET
+        AdminJobGET:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/{jobId}
+            Method: GET
+        AdminJobApprovePOST:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/{jobId}/approve
+            Method: POST
+        AdminJobRejectPOST:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/{jobId}/reject
+            Method: POST
+        AdminJobRelistPOST:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /admin/{jobId}/relist
+            Method: POST
 
 Outputs:
   ## Unified API Gateway Output
@@ -1505,7 +1584,7 @@ Outputs:
 
   CognitoHostedUiUrl:
     Description: "Cognito Hosted UI Login URL"
-    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=code&scope=email+openid+profile&redirect_uri=https://www.example.com/callback"
+    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=token&scope=email+openid+profile&redirect_uri=https://www.example.com/callback"
     Export:
       Name: !Sub "FreelancePlatform-HostedUiUrl-${Environment}"
 

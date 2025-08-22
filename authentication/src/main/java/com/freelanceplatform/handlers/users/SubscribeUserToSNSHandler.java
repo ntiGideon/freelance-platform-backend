@@ -25,7 +25,6 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
     private final SnsClient snsClient = SnsClient.create();
     private final DynamoDbEnhancedClient dynamoDbClient = DynamoDbEnhancedClient.create();
     private final String CATEGORIES_TABLE = System.getenv( "CATEGORIES_TABLE" );
-    private final String topicArn = System.getenv( "SNS_TOPIC_ARN" );
     
     @Override
     public Object handleRequest (Map<String, Object> input, Context context) {
@@ -35,77 +34,71 @@ public class SubscribeUserToSNSHandler implements RequestHandler<Map<String, Obj
         
         String email = (String) input.get( "email" );
         
-        if ( email == null || topicArn == null ) throw new IllegalArgumentException( "Missing email or SNS_TOPIC_ARN" );
+        if ( email == null || email.isBlank()) throw new IllegalArgumentException( "Missing email" );
         
         List<String> categoryIds = Utils.parsePreferredJobCategoryIds( input.get( "jobCategoryIds" ) );
         
         if ( categoryIds == null || categoryIds.isEmpty() ) {
             logger.log( "No jobs to subscribe to" );
             return input;
-        } else {
-            
-            subscriptionArn = getSubscriptionArn( email );
+        }
+
+        List<JobCategory> categories = fetchCategories(categoryIds);
+
+        if (categories.isEmpty()) {
+            logger.log("No matching categories found in DynamoDB");
+            return input;
         }
         
-        buildFilterPolicy( categoryIds, subscriptionArn );
+        List<String> subscribedTopics = subscribeUserToCategories(email, categories, logger);
         
-        logger.log( "Subscribed " + email + " with filter policy: " + categoryIds );
+        logger.log( "Subscribed " + email + " to job categories" );
         
         return input;
     }
     
-    private String getSubscriptionArn (String email) {
-        String subscriptionArn;
-        // Subscribe user email (v2)
-        SubscribeRequest subscribeRequest = SubscribeRequest.builder()
-                .topicArn( topicArn )
-                .protocol( "email" )
-                .endpoint( email )
-                .build();
-        
-        SubscribeResponse subscribeResponse = snsClient.subscribe( subscribeRequest );
-        subscriptionArn = subscribeResponse.subscriptionArn();
-        return subscriptionArn;
-    }
-    
-    private void buildFilterPolicy (List<String> categoryIds, String subscriptionArn) {
-        // Build filter policy
-        List<String> categoryNames = batchGetCategoryNames( categoryIds );
-        
-        if ( categoryNames != null && !categoryNames.isEmpty() && subscriptionArn != null ) {
-            String filterPolicyJson = "{\"category\":[" +
-                    categoryNames.stream()
-                            .map( cat -> "\"" + cat.trim() + "\"" )
-                            .collect( Collectors.joining( "," ) ) + "]}";
-            
-            snsClient.setSubscriptionAttributes( SetSubscriptionAttributesRequest.builder()
-                    .subscriptionArn( subscriptionArn )
-                    .attributeName( "FilterPolicy" )
-                    .attributeValue( filterPolicyJson )
-                    .build() );
-        }
-    }
-    
-    private List<String> batchGetCategoryNames (List<String> categoryIds) {
-        DynamoDbTable<JobCategory> jobCategoryTable = dynamoDbClient.table( CATEGORIES_TABLE, TableSchema.fromBean( JobCategory.class ) );
-        
-        ReadBatch.Builder<JobCategory> readBatchBuilder = ReadBatch.builder( JobCategory.class )
-                .mappedTableResource( jobCategoryTable );
-        
-        // Add each key individually
-        categoryIds.forEach( id ->
-                readBatchBuilder.addGetItem( Key.builder().partitionValue( id ).build() )
+    private List<JobCategory> fetchCategories(List<String> categoryIds) {
+        DynamoDbTable<JobCategory> categoryTable = dynamoDbClient.table(CATEGORIES_TABLE, TableSchema.fromBean(JobCategory.class));
+
+        ReadBatch.Builder<JobCategory> readBatchBuilder =
+                ReadBatch.builder(JobCategory.class).mappedTableResource(categoryTable);
+
+        categoryIds.forEach(id ->
+                readBatchBuilder.addGetItem(Key.builder().partitionValue(id).build())
         );
-        
-        BatchGetItemEnhancedRequest batchRequest = BatchGetItemEnhancedRequest.builder()
-                .readBatches( readBatchBuilder.build() )
+
+        BatchGetItemEnhancedRequest request = BatchGetItemEnhancedRequest.builder()
+                .readBatches(readBatchBuilder.build())
                 .build();
-        
-        return dynamoDbClient.batchGetItem( batchRequest )
-                .resultsForTable( jobCategoryTable )
+
+        return dynamoDbClient.batchGetItem(request)
+                .resultsForTable(categoryTable)
                 .stream()
-                .map( JobCategory::getName )
-                .filter( name -> name != null && !name.isBlank() )
-                .collect( Collectors.toList() );
+                .filter(cat -> cat.getSnsTopicArn() != null && !cat.getSnsTopicArn().isBlank())
+                .collect(Collectors.toList());
+    }
+    
+    private List<String> subscribeUserToCategories(String email, List<JobCategory> categories, LambdaLogger logger) {
+        return categories.stream()
+                .map(cat -> {
+                    try {
+                        SubscribeResponse response = snsClient.subscribe(
+                                SubscribeRequest.builder()
+                                        .topicArn(cat.getSnsTopicArn())
+                                        .protocol("email")
+                                        .endpoint(email)
+                                        .build()
+                        );
+                        logger.log("Subscribed to topic " + cat.getSnsTopicArn() +
+                                   " (subscriptionArn: " + response.subscriptionArn() + ")");
+                        return cat.getSnsTopicArn();
+                    } catch (Exception e) {
+                        logger.log("Failed to subscribe to topic " + cat.getSnsTopicArn() +
+                                   ": " + e.getMessage());
+                        return null;
+                    }
+                })
+                .filter(arn -> arn != null)
+                .collect(Collectors.toList());
     }
 }
