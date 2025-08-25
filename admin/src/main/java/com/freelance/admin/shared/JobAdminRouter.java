@@ -59,23 +59,23 @@ public class JobAdminRouter
 
     try {
       // Admin job creation
-      if (path.equals("/admin") && method.equals("POST")) {
+      if (path.equals("/admin/job/create") && method.equals("POST")) {
         return new CreateJobHandler().handleRequest(input, context);
 
         // Admin job listing and statistics
-      } else if (path.equals("/admin") && method.equals("GET")) {
+      } else if (path.equals("/admin/job") && method.equals("GET")) {
         return new ListAllJobsHandler().handleRequest(input, context);
-      } else if (path.equals("/admin/statistics") && method.equals("GET")) {
+      } else if (path.equals("/admin/job/statistics") && method.equals("GET")) {
         return new JobStatisticsHandler().handleRequest(input, context);
 
         // Admin individual job operations
-      } else if (path.matches("/admin/[^/]+") && method.equals("GET")) {
+      } else if (path.matches("/admin/job/[^/]+") && method.equals("GET")) {
         return new ViewJobHandler().handleRequest(input, context);
-      } else if (path.matches("/admin/[^/]+/approve") && method.equals("POST")) {
+      } else if (path.matches("/admin/job/[^/]+/approve") && method.equals("POST")) {
         return new ApproveJobHandler().handleRequest(input, context);
-      } else if (path.matches("/admin/[^/]+/reject") && method.equals("POST")) {
+      } else if (path.matches("/admin/job/[^/]+/reject") && method.equals("POST")) {
         return new RejectJobHandler().handleRequest(input, context);
-      } else if (path.matches("/admin/[^/]+/relist") && method.equals("POST")) {
+      } else if (path.matches("/admin/job/[^/]+/relist") && method.equals("POST")) {
         return new RelistJobHandler().handleRequest(input, context);
 
       } else {
