@@ -42,12 +42,17 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
             // Get query parameters
             String type = RequestMapper.getQueryParameter(input, "type", "available");
             String status = RequestMapper.getQueryParameter(input, "status");
-            String sortBy = RequestMapper.getQueryParameter(input, "sortBy", "createdAt");
+            String categoryId = RequestMapper.getQueryParameter(input, "categoryId");
+            String query = RequestMapper.getQueryParameter(input, "query");
+            String sortBy = RequestMapper.getQueryParameter(input, "sortBy", "newest");
             String sortOrder = RequestMapper.getQueryParameter(input, "sortOrder", "desc");
             int limit = parseInt(RequestMapper.getQueryParameter(input, "limit", "20"));
             int offset = parseInt(RequestMapper.getQueryParameter(input, "offset", "0"));
 
             List<JobEntity> jobs = getJobsForSeeker(seekerId, type, status, context);
+
+            // Apply additional filters
+            jobs = applyFilters(jobs, categoryId, query);
 
             // Sort jobs based on parameters
             sortJobs(jobs, sortBy, sortOrder);
@@ -224,10 +229,36 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
     }
 
     
+    /**
+     * Apply additional filters for search and category
+     */
+    private List<JobEntity> applyFilters(List<JobEntity> jobs, String categoryId, String query) {
+        return jobs.stream()
+                .filter(job -> categoryId == null || job.categoryId().equals(categoryId))
+                .filter(job -> query == null || matchesSearchQuery(job, query))
+                .toList();
+    }
+
+    /**
+     * Check if job matches search query (case-insensitive search in name and description)
+     */
+    private boolean matchesSearchQuery(JobEntity job, String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return true;
+        }
+        
+        String searchTerm = query.toLowerCase().trim();
+        String jobName = job.name().toLowerCase();
+        String jobDescription = job.description().toLowerCase();
+        
+        return jobName.contains(searchTerm) || jobDescription.contains(searchTerm);
+    }
+
     private void sortJobs(List<JobEntity> jobs, String sortBy, String sortOrder) {
         boolean ascending = "asc".equalsIgnoreCase(sortOrder);
         
         switch (sortBy.toLowerCase()) {
+            case "newest":
             case "createdat":
             case "created":
                 jobs.sort(ascending ? 
@@ -240,12 +271,14 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
                     (a, b) -> a.updatedAt().compareTo(b.updatedAt()) :
                     (a, b) -> b.updatedAt().compareTo(a.updatedAt()));
                 break;
+            case "highest_paying":
             case "payamount":
             case "pay":
                 jobs.sort(ascending ? 
                     (a, b) -> a.payAmount().compareTo(b.payAmount()) :
                     (a, b) -> b.payAmount().compareTo(a.payAmount()));
                 break;
+            case "latest_expiration":
             case "expirydate":
             case "expiry":
                 jobs.sort(ascending ? 
@@ -253,8 +286,8 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
                     (a, b) -> b.expiryDate().compareTo(a.expiryDate()));
                 break;
             default:
-                // Default sort by payAmount descending (best paying first)
-                jobs.sort((a, b) -> b.payAmount().compareTo(a.payAmount()));
+                // Default sort by createdAt descending (newest first)
+                jobs.sort((a, b) -> b.createdAt().compareTo(a.createdAt()));
         }
     }
     
