@@ -115,6 +115,8 @@ public class JobRouter
         return new com.freelance.jobs.owners.ListJobsHandler().handleRequest(input, context);
       } else if (path.matches("/job/owner/view/[^/]+") && method.equals("GET")) {
         return new com.freelance.jobs.owners.ViewJobHandler().handleRequest(input, context);
+      } else if (path.matches("/job/owner/edit/[^/]+") && method.equals("PUT")) {
+        return new com.freelance.jobs.owners.EditJobHandler().handleRequest(input, context);
       } else if (path.matches("/job/owner/approve/[^/]+") && method.equals("POST")) {
         return new ApproveJobHandler().handleRequest(input, context);
       } else if (path.matches("/job/owner/reject/[^/]+") && method.equals("POST")) {

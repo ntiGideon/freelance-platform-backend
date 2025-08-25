@@ -198,6 +198,8 @@ public class CreateJobHandler
       item.put("status", AttributeValue.builder().s(jobEntity.status()).build());
       item.put("createdAt", AttributeValue.builder().s(jobEntity.createdAt()).build());
       item.put("updatedAt", AttributeValue.builder().s(jobEntity.updatedAt()).build());
+      // Add datePosted for OwnerJobsIndex GSI compatibility
+      item.put("datePosted", AttributeValue.builder().s(jobEntity.createdAt()).build());
 
       Instant expiryInstant = Instant.parse(jobEntity.expiryDate());
       item.put(
