@@ -36,7 +36,7 @@ public class JobStatisticsHandler implements RequestHandler<APIGatewayProxyReque
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         try {
-            String userId = RequestMapper.extractOwnerIdFromContext(input);
+            String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
 
             if (userId == null) {
                 return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
