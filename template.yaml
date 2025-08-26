@@ -1339,7 +1339,7 @@ Resources:
           JOBS_TABLE_NAME: !Ref JobsTable
           CATEGORIES_TABLE_NAME: !Ref CategoriesTable
           EVENT_BUS_NAME: !Ref JobsEventBus
-          USER_POOL_ID: !Ref UserPool
+          AWS_ACCOUNT_ID: !Ref AWS::AccountId
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref JobsTable
