@@ -101,7 +101,10 @@ public class JobAdminRouter
       } else if (path.matches("/admin/job/[^/]+/relist") && method.equals("POST")) {
         return new RelistJobHandler().handleRequest(input, context);
 
-      } else {
+      } else if (path.matches("/admin/job/[^/]+/delete") && method.equals("DELETE")) {
+        return new DeleteJobHandler().handleRequest(input, context);
+      }
+      else {
         return createErrorResponse(404, "Admin endpoint not found: " + method + " " + path);
       }
     } catch (Exception e) {
