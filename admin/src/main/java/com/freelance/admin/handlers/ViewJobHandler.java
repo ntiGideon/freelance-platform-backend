@@ -61,7 +61,7 @@ public class ViewJobHandler implements RequestHandler<APIGatewayProxyRequestEven
         } catch (Exception e) {
             context.getLogger().log("Error getting job details: " + e.getMessage());
             e.printStackTrace();
-            return ResponseUtil.createErrorResponse(500, "Internal server error");
+            return ResponseUtil.createErrorResponse(500, e.getMessage());
         }
     }
 
