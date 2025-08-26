@@ -36,7 +36,6 @@ public class ListAllJobsHandler implements RequestHandler<APIGatewayProxyRequest
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         try {
             String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
-
             if (userId == null) {
                 return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
             }
@@ -83,7 +82,7 @@ public class ListAllJobsHandler implements RequestHandler<APIGatewayProxyRequest
         } catch (Exception e) {
             context.getLogger().log("Error listing all jobs: " + e.getMessage());
             e.printStackTrace();
-            return ResponseUtil.createErrorResponse(500, "Internal server error");
+            return ResponseUtil.createErrorResponse(500, e.getMessage());
         }
     }
 

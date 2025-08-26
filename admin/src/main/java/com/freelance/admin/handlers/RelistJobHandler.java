@@ -47,9 +47,12 @@ public class RelistJobHandler implements RequestHandler<APIGatewayProxyRequestEv
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         try {
-            String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
             String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
+            if (userId == null) {
+                return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
+            }
 
+            String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
             if (jobId == null) {
                 return ResponseUtil.createErrorResponse(400, "Job ID not found in path");
             }
@@ -82,7 +85,7 @@ public class RelistJobHandler implements RequestHandler<APIGatewayProxyRequestEv
         } catch (Exception e) {
             context.getLogger().log("Error relisting job: " + e.getMessage());
             e.printStackTrace();
-            return ResponseUtil.createErrorResponse(500, "Internal server error");
+            return ResponseUtil.createErrorResponse(500, e.getMessage());
         }
     }
 
