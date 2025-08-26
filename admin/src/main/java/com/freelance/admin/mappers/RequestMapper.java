@@ -26,7 +26,12 @@ public class RequestMapper {
         }
 
         String[] parts = path.split("/");
-        if (parts.length >= 4 && "jobs".equals(parts[2])) {
+
+        if (parts.length >= 5 && "job".equals(parts[2]) && "delete".equals(parts[4])) {
+            return parts[3];
+        }
+
+        else if (parts.length >= 4 && "job".equals(parts[2])) {
             return parts[3];
         }
         return null;
