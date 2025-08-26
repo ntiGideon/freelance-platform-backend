@@ -1495,13 +1495,6 @@ Resources:
               Action:
                 - cognito-idp:AdminListGroupsForUser
               Resource: !GetAtt UserPool.Arn
-      Events:
-        AdminApi:
-          Type: Api
-          Properties:
-            RestApiId: !Ref FreelancePlatformApi
-            Path: /admin/{proxy+}
-            Method: ANY
 
 
 Outputs:
