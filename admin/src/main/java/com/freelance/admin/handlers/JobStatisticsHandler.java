@@ -42,9 +42,6 @@ public class JobStatisticsHandler implements RequestHandler<APIGatewayProxyReque
                 return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
             }
 
-//            if (!AdminAuthUtils.isAdminUser(userId)) {
-//                return ResponseUtil.createErrorResponse(403, "Forbidden: Only admins can view statistics");
-//            }
 
             context.getLogger().log("Generating job statistics for admin");
 
