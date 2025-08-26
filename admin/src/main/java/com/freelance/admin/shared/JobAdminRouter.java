@@ -43,18 +43,10 @@ public class JobAdminRouter
 
       // Extract user info from API Gateway request context (Cognito authorizer claims)
       String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
-      String userEmail = RequestMapper.extractUserEmailFromRequestContext(input);
-//      String userRole = RequestMapper.extractUserRoleFromRequestContext(input);
       
       if (userId == null) {
         return createErrorResponse(401, "Unauthorized: User ID not found");
       }
-      
-      // Validate that user has ADMIN role for admin operations
-//      if (!"ADMIN".equals(userRole)) {
-//        context.getLogger().log("Invalid user role for admin operations: " + userRole);
-//        return createErrorResponse(403, "Forbidden: ADMIN role required for admin operations");
-//      }
 
       context.getLogger().log("Admin user validation passed. Routing request...");
 
@@ -72,7 +64,7 @@ public class JobAdminRouter
     } catch (Exception e) {
       context.getLogger().log("Error processing request: " + e.getMessage());
       e.printStackTrace();
-      return createErrorResponse(500, "Internal server error");
+      return createErrorResponse(500, e.getMessage());
     }
   }
 
@@ -109,7 +101,7 @@ public class JobAdminRouter
       }
     } catch (Exception e) {
       context.getLogger().log("Error in admin route: " + e.getMessage());
-      return createErrorResponse(500, "Error processing admin request");
+      return createErrorResponse(500, e.getMessage());
     }
   }
 
