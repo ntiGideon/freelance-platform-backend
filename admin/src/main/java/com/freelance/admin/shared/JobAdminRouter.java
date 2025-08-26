@@ -58,9 +58,6 @@ public class JobAdminRouter
 
       context.getLogger().log("Admin user validation passed. Routing request...");
 
-//      if(!AdminAuthUtils.isAdminUser(userId)){
-//        return createErrorResponse(403, "Forbidden: User does not belongs to admin group!");
-//      }
 
       // Route to appropriate handler based on path
       if (path.startsWith("/admin")) {
