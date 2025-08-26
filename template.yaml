@@ -1497,7 +1497,7 @@ Outputs:
 
   HealthCheckUrl:
     Description: "Health check endpoint URL"
-    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/health"
+    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/dev/health"
     Export:
       Name: !Sub "${Environment}-health-check-url"
 
