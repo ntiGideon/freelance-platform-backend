@@ -41,7 +41,7 @@ public class ApproveJobHandler implements RequestHandler<APIGatewayProxyRequestE
   public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
     try {
       String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
-      String userId = RequestMapper.extractUserIdFromContext(input, "user");
+      String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
 
       if (jobId == null) {
         return ResponseUtil.createErrorResponse(400, "Job ID not found in path");

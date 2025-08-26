@@ -40,17 +40,13 @@ public class ViewJobHandler implements RequestHandler<APIGatewayProxyRequestEven
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         try {
             String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
-            String adminId = RequestMapper.extractUserIdFromContext(input, "user");
+            String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
 
             if (jobId == null) {
                 return ResponseUtil.createErrorResponse(400, "Job ID not found in path");
             }
 
-            if (adminId == null || !AdminAuthUtils.isAdminUser(adminId)) {
-                return ResponseUtil.createErrorResponse(403, "Forbidden: Only admins can view job details");
-            }
-
-            context.getLogger().log("Admin " + adminId + " viewing job details for jobId: " + jobId);
+            context.getLogger().log("Admin " + userId + " viewing job details for jobId: " + jobId);
 
             JobEntity job = getJobById(jobId, context);
             if (job == null) {
