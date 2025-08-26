@@ -66,23 +66,6 @@ Resources:
             UserPoolArn: !GetAtt UserPool.Arn
             IdentitySource: "$request.header.Authorization"
             AuthorizationScopes: []
-      GatewayResponses:
-        UNAUTHORIZED:
-          StatusCode: 401
-          ResponseTemplates:
-            "application/json": '{"message": "Unauthorized"}'
-          ResponseParameters:
-            gatewayresponse.header.Access-Control-Allow-Origin: "'http://localhost:4200'"
-            gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
-            gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
-        FORBIDDEN:
-          StatusCode: 403
-          ResponseTemplates:
-            "application/json": '{"message": "Forbidden"}'
-          ResponseParameters:
-            gatewayresponse.header.Access-Control-Allow-Origin: "'http://localhost:4200'"
-            gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
-            gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
       DefinitionBody:
         openapi: 3.0.1
         info:
@@ -143,6 +126,23 @@ Resources:
                 type: aws_proxy
                 httpMethod: POST
                 uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateCategoryFunction.Arn}/invocations"
+        x-amazon-apigateway-gateway-responses:
+          UNAUTHORIZED:
+            statusCode: 401
+            responseTemplates:
+              "application/json": '{"message": "Unauthorized"}'
+            responseParameters:
+              "gatewayresponse.header.Access-Control-Allow-Origin": "'http://localhost:4200'"
+              "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
+              "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
+          ACCESS_DENIED:
+            statusCode: 403
+            responseTemplates:
+              "application/json": '{"message": "Forbidden"}'
+            responseParameters:
+              "gatewayresponse.header.Access-Control-Allow-Origin": "'http://localhost:4200'"
+              "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
+              "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
         components:
           securitySchemes:
             CognitoAuthorizer:
