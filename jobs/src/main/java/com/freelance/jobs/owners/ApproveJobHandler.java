@@ -11,6 +11,7 @@ import com.freelance.jobs.exceptions.JobNotOwnedException;
 import com.freelance.jobs.exceptions.JobNotSubmittedException;
 import com.freelance.jobs.mappers.JobEntityMapper;
 import com.freelance.jobs.mappers.RequestMapper;
+import com.freelance.jobs.model.ApproveJobRequest;
 import com.freelance.jobs.shared.ResponseUtil;
 import java.time.Instant;
 import java.util.Map;
@@ -55,10 +56,25 @@ public class ApproveJobHandler
         return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
       }
 
-      context.getLogger().log("Approving job " + jobId + " by owner " + ownerId);
+      // Parse request body for optional message
+      String approvalMessage = null;
+      if (input.getBody() != null && !input.getBody().trim().isEmpty()) {
+          try {
+              ApproveJobRequest approveRequest = objectMapper.readValue(input.getBody(), ApproveJobRequest.class);
+              if (!approveRequest.isValid()) {
+                  return ResponseUtil.createErrorResponse(400, "Invalid request: message too long (max 1000 characters)");
+              }
+              approvalMessage = approveRequest.trimmedMessage();
+          } catch (Exception e) {
+              return ResponseUtil.createErrorResponse(400, "Invalid JSON in request body");
+          }
+      }
+
+      context.getLogger().log("Approving job " + jobId + " by owner " + ownerId + 
+          (approvalMessage != null ? " with message" : " without message"));
 
       // Approve the job
-      JobEntity approvedJob = approveJob(jobId, ownerId, context);
+      JobEntity approvedJob = approveJob(jobId, ownerId, approvalMessage, context);
 
       // Publish job.approved event
       publishJobApprovedEvent(approvedJob, context);
@@ -88,7 +104,7 @@ public class ApproveJobHandler
     }
   }
 
-  private JobEntity approveJob(String jobId, String ownerId, Context context)
+  private JobEntity approveJob(String jobId, String ownerId, String approvalMessage, Context context)
       throws JobNotSubmittedException, JobNotOwnedException {
     try {
       Instant now = Instant.now();
@@ -102,25 +118,34 @@ public class ApproveJobHandler
       // Validate job can be approved by this owner
       validateJobForApproval(currentJob, ownerId);
 
-      // Atomic update to set status to "approved_as_completed"
+      // Atomic update to set status to "approved_as_completed" with optional message
+      String updateExpression = approvalMessage != null ?
+          "SET #status = :approvedStatus, #updatedAt = :updatedAt, #approvalMessage = :approvalMessage" :
+          "SET #status = :approvedStatus, #updatedAt = :updatedAt";
+      
+      Map<String, String> expressionAttributeNames = Map.of(
+          "#status", "status",
+          "#ownerId", "ownerId",
+          "#updatedAt", "updatedAt",
+          "#approvalMessage", "approvalMessage"
+      );
+      
+      Map<String, AttributeValue> expressionAttributeValues = Map.of(
+          ":approvedStatus", AttributeValue.builder().s("approved_as_completed").build(),
+          ":submittedStatus", AttributeValue.builder().s("submitted").build(),
+          ":ownerId", AttributeValue.builder().s(ownerId).build(),
+          ":updatedAt", AttributeValue.builder().s(now.toString()).build(),
+          ":approvalMessage", AttributeValue.builder().s(approvalMessage != null ? approvalMessage : "").build()
+      );
+      
       UpdateItemRequest updateRequest =
           UpdateItemRequest.builder()
               .tableName(jobsTableName)
               .key(Map.of("jobId", AttributeValue.builder().s(jobId).build()))
-              .updateExpression("SET #status = :approvedStatus, #updatedAt = :updatedAt")
+              .updateExpression(updateExpression)
               .conditionExpression("#status = :submittedStatus AND #ownerId = :ownerId")
-              .expressionAttributeNames(
-                  Map.of(
-                      "#status", "status",
-                      "#ownerId", "ownerId",
-                      "#updatedAt", "updatedAt"))
-              .expressionAttributeValues(
-                  Map.of(
-                      ":approvedStatus",
-                          AttributeValue.builder().s("approved_as_completed").build(),
-                      ":submittedStatus", AttributeValue.builder().s("submitted").build(),
-                      ":ownerId", AttributeValue.builder().s(ownerId).build(),
-                      ":updatedAt", AttributeValue.builder().s(now.toString()).build()))
+              .expressionAttributeNames(expressionAttributeNames)
+              .expressionAttributeValues(expressionAttributeValues)
               .build();
 
       dynamoDbClient.updateItem(updateRequest);
@@ -143,6 +168,9 @@ public class ApproveJobHandler
           .claimedAt(currentJob.claimedAt())
           .submissionDeadline(currentJob.submissionDeadline())
           .submittedAt(currentJob.submittedAt())
+          .submissionMessage(currentJob.submissionMessage())
+          .approvalMessage(approvalMessage)
+          .rejectionMessage(currentJob.rejectionMessage())
           .build();
 
     } catch (ConditionalCheckFailedException e) {

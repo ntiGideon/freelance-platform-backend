@@ -18,7 +18,10 @@ public record JobEntity(
     String claimerId,
     String claimedAt,
     String submissionDeadline,
-    String submittedAt) {
+    String submittedAt,
+    String submissionMessage,
+    String approvalMessage,
+    String rejectionMessage) {
 
   public static Builder builder() {
     return new Builder();
@@ -40,6 +43,9 @@ public record JobEntity(
     private String claimedAt;
     private String submissionDeadline;
     private String submittedAt;
+    private String submissionMessage;
+    private String approvalMessage;
+    private String rejectionMessage;
 
     public Builder jobId(String jobId) {
       this.jobId = jobId;
@@ -116,6 +122,21 @@ public record JobEntity(
       return this;
     }
 
+    public Builder submissionMessage(String submissionMessage) {
+      this.submissionMessage = submissionMessage;
+      return this;
+    }
+
+    public Builder approvalMessage(String approvalMessage) {
+      this.approvalMessage = approvalMessage;
+      return this;
+    }
+
+    public Builder rejectionMessage(String rejectionMessage) {
+      this.rejectionMessage = rejectionMessage;
+      return this;
+    }
+
     public JobEntity build() {
       return new JobEntity(
           jobId,
@@ -132,7 +153,10 @@ public record JobEntity(
           claimerId,
           claimedAt,
           submissionDeadline,
-          submittedAt);
+          submittedAt,
+          submissionMessage,
+          approvalMessage,
+          rejectionMessage);
     }
   }
 }

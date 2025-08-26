@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.freelance.admin.auth.AdminAuthUtils;
 import com.freelance.admin.handlers.*;
+import com.freelance.admin.mappers.RequestMapper;
 
 
 import java.util.Map;
@@ -26,11 +27,36 @@ public class JobAdminRouter
 
       context.getLogger().log("Processing request: " + httpMethod + " " + path);
 
-      String userId = extractUserId(input);
+      // Handle OPTIONS preflight requests for CORS
+      if ("OPTIONS".equals(httpMethod)) {
+        context.getLogger().log("Handling OPTIONS preflight request");
+        return new APIGatewayProxyResponseEvent()
+            .withStatusCode(200)
+            .withHeaders(Map.of(
+                "Access-Control-Allow-Origin", "http://localhost:4200",
+                "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+                "Access-Control-Allow-Headers", "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With",
+                "Access-Control-Max-Age", "86400"
+            ))
+            .withBody("");
+      }
 
+      // Extract user info from API Gateway request context (Cognito authorizer claims)
+      String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
+      String userEmail = RequestMapper.extractUserEmailFromRequestContext(input);
+      String userRole = RequestMapper.extractUserRoleFromRequestContext(input);
+      
       if (userId == null) {
         return createErrorResponse(401, "Unauthorized: User ID not found");
       }
+      
+      // Validate that user has ADMIN role for admin operations
+      if (!"ADMIN".equals(userRole)) {
+        context.getLogger().log("Invalid user role for admin operations: " + userRole);
+        return createErrorResponse(403, "Forbidden: ADMIN role required for admin operations");
+      }
+
+      context.getLogger().log("Admin user validation passed. Routing request...");
 
       if(!AdminAuthUtils.isAdminUser(userId)){
         return createErrorResponse(403, "Forbidden: User does not belongs to admin group!");
@@ -87,16 +113,6 @@ public class JobAdminRouter
     }
   }
 
-  private String extractUserId(APIGatewayProxyRequestEvent input) {
-    Map<String, String> headers = input.getHeaders();
-    if (headers != null) {
-      String userId = headers.get("x-user-id");
-      if (userId != null && !userId.isEmpty()) {
-        return userId;
-      }
-    }
-    return null;
-  }
 
   private APIGatewayProxyResponseEvent createErrorResponse(int statusCode, String message) {
     return new APIGatewayProxyResponseEvent()
@@ -104,7 +120,9 @@ public class JobAdminRouter
         .withHeaders(
             Map.of(
                 "Content-Type", "application/json",
-                "Access-Control-Allow-Origin", "*"))
+                "Access-Control-Allow-Origin", "http://localhost:4200",
+                "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+                "Access-Control-Allow-Headers", "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With"))
         .withBody("{\"error\":\"" + message + "\"}");
   }
 }
