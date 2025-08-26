@@ -11,6 +11,7 @@ import com.freelance.jobs.exceptions.JobNotClaimedException;
 import com.freelance.jobs.exceptions.SubmissionDeadlineExceededException;
 import com.freelance.jobs.mappers.JobEntityMapper;
 import com.freelance.jobs.mappers.RequestMapper;
+import com.freelance.jobs.model.SubmitJobRequest;
 import com.freelance.jobs.shared.ResponseUtil;
 import java.time.Instant;
 import java.util.Map;
@@ -55,10 +56,25 @@ public class SubmitJobHandler implements RequestHandler<APIGatewayProxyRequestEv
                 return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
             }
 
-            context.getLogger().log("Submitting job " + jobId + " by seeker " + seekerId);
+            // Parse request body for optional message
+            String submissionMessage = null;
+            if (input.getBody() != null && !input.getBody().trim().isEmpty()) {
+                try {
+                    SubmitJobRequest submitRequest = objectMapper.readValue(input.getBody(), SubmitJobRequest.class);
+                    if (!submitRequest.isValid()) {
+                        return ResponseUtil.createErrorResponse(400, "Invalid request: message too long (max 1000 characters)");
+                    }
+                    submissionMessage = submitRequest.trimmedMessage();
+                } catch (Exception e) {
+                    return ResponseUtil.createErrorResponse(400, "Invalid JSON in request body");
+                }
+            }
+
+            context.getLogger().log("Submitting job " + jobId + " by seeker " + seekerId + 
+                (submissionMessage != null ? " with message" : " without message"));
 
             // Submit the job
-            JobEntity submittedJob = submitJob(jobId, seekerId, context);
+            JobEntity submittedJob = submitJob(jobId, seekerId, submissionMessage, context);
             
             // Publish job.submitted event with claimer email
             publishJobSubmittedEvent(submittedJob, seekerEmail, context);
@@ -81,7 +97,7 @@ public class SubmitJobHandler implements RequestHandler<APIGatewayProxyRequestEv
         }
     }
 
-    private JobEntity submitJob(String jobId, String seekerId, Context context) 
+    private JobEntity submitJob(String jobId, String seekerId, String submissionMessage, Context context) 
             throws JobNotClaimedException, SubmissionDeadlineExceededException {
         try {
             Instant now = Instant.now();
@@ -95,25 +111,35 @@ public class SubmitJobHandler implements RequestHandler<APIGatewayProxyRequestEv
             // Validate job can be submitted by this seeker
             validateJobForSubmission(currentJob, seekerId, now);
 
-            // Atomic update to set status to "submitted"
+            // Atomic update to set status to "submitted" with optional message
+            String updateExpression = submissionMessage != null ? 
+                "SET #status = :submittedStatus, #submittedAt = :submittedAt, #updatedAt = :updatedAt, #submissionMessage = :submissionMessage" :
+                "SET #status = :submittedStatus, #submittedAt = :submittedAt, #updatedAt = :updatedAt";
+            
+            Map<String, String> expressionAttributeNames = Map.of(
+                    "#status", "status",
+                    "#claimerId", "claimerId",
+                    "#submittedAt", "submittedAt",
+                    "#updatedAt", "updatedAt",
+                    "#submissionMessage", "submissionMessage"
+            );
+            
+            Map<String, AttributeValue> expressionAttributeValues = Map.of(
+                    ":submittedStatus", AttributeValue.builder().s("submitted").build(),
+                    ":claimedStatus", AttributeValue.builder().s("claimed").build(),
+                    ":seekerId", AttributeValue.builder().s(seekerId).build(),
+                    ":submittedAt", AttributeValue.builder().s(now.toString()).build(),
+                    ":updatedAt", AttributeValue.builder().s(now.toString()).build(),
+                    ":submissionMessage", AttributeValue.builder().s(submissionMessage != null ? submissionMessage : "").build()
+            );
+            
             UpdateItemRequest updateRequest = UpdateItemRequest.builder()
                     .tableName(jobsTableName)
                     .key(Map.of("jobId", AttributeValue.builder().s(jobId).build()))
-                    .updateExpression("SET #status = :submittedStatus, #submittedAt = :submittedAt, #updatedAt = :updatedAt")
+                    .updateExpression(updateExpression)
                     .conditionExpression("#status = :claimedStatus AND #claimerId = :seekerId")
-                    .expressionAttributeNames(Map.of(
-                            "#status", "status",
-                            "#claimerId", "claimerId",
-                            "#submittedAt", "submittedAt",
-                            "#updatedAt", "updatedAt"
-                    ))
-                    .expressionAttributeValues(Map.of(
-                            ":submittedStatus", AttributeValue.builder().s("submitted").build(),
-                            ":claimedStatus", AttributeValue.builder().s("claimed").build(),
-                            ":seekerId", AttributeValue.builder().s(seekerId).build(),
-                            ":submittedAt", AttributeValue.builder().s(now.toString()).build(),
-                            ":updatedAt", AttributeValue.builder().s(now.toString()).build()
-                    ))
+                    .expressionAttributeNames(expressionAttributeNames)
+                    .expressionAttributeValues(expressionAttributeValues)
                     .build();
 
             dynamoDbClient.updateItem(updateRequest);
@@ -137,6 +163,9 @@ public class SubmitJobHandler implements RequestHandler<APIGatewayProxyRequestEv
                     .claimedAt(currentJob.claimedAt())
                     .submissionDeadline(currentJob.submissionDeadline())
                     .submittedAt(now.toString())
+                    .submissionMessage(submissionMessage)
+                    .approvalMessage(currentJob.approvalMessage())
+                    .rejectionMessage(currentJob.rejectionMessage())
                     .build();
 
         } catch (ConditionalCheckFailedException e) {
