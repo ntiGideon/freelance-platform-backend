@@ -1359,7 +1359,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref FreelancePlatformApi
-            Path: /admin/{proxy+}
+            Path: /admin/job/{proxy+}
             Method: ANY
 
 
