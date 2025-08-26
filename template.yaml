@@ -790,6 +790,23 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/GET/categories"
 
+  HealthCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-HealthCheck"
+      CodeUri: health/
+      Handler: com.freelance.health.HealthCheckHandler::handleRequest
+      Runtime: java17
+      MemorySize: 512
+      Timeout: 30
+      Events:
+        HealthCheckApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /health
+            Method: GET
+
   ## =========================
   ## Event Processor Functions
   ## =========================
@@ -1480,7 +1497,7 @@ Resources:
           JOBS_TABLE_NAME: !Ref JobsTable
           CATEGORIES_TABLE_NAME: !Ref CategoriesTable
           EVENT_BUS_NAME: !Ref JobsEventBus
-          USER_POOL_ID: !Ref UserPool
+          AWS_ACCOUNT_ID: !Ref AWS::AccountId
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref JobsTable
@@ -1504,6 +1521,12 @@ Outputs:
     Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
     Export:
       Name: !Sub "${Environment}-freelance-api-url"
+
+  HealthCheckUrl:
+    Description: "Health check endpoint URL"
+    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/dev/health"
+    Export:
+      Name: !Sub "${Environment}-health-check-url"
 
   FreelancePlatformApiId:
     Description: "API Gateway ID"
