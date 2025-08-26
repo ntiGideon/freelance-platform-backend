@@ -126,6 +126,40 @@ Resources:
                 type: aws_proxy
                 httpMethod: POST
                 uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateCategoryFunction.Arn}/invocations"
+          "/admin/{proxy+}":
+            options:
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+            get:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+            put:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+            delete:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
         x-amazon-apigateway-gateway-responses:
           UNAUTHORIZED:
             statusCode: 401
