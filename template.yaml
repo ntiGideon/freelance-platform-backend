@@ -744,6 +744,23 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/GET/categories"
 
+  HealthCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-HealthCheck"
+      CodeUri: health/
+      Handler: com.freelance.health.HealthCheckHandler::handleRequest
+      Runtime: java17
+      MemorySize: 512
+      Timeout: 30
+      Events:
+        HealthCheckApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /health
+            Method: GET
+
   ## =========================
   ## Event Processor Functions
   ## =========================
@@ -1465,6 +1482,12 @@ Outputs:
     Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
     Export:
       Name: !Sub "${Environment}-freelance-api-url"
+
+  HealthCheckUrl:
+    Description: "Health check endpoint URL"
+    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/health"
+    Export:
+      Name: !Sub "${Environment}-health-check-url"
 
   FreelancePlatformApiId:
     Description: "API Gateway ID"
