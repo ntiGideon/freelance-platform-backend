@@ -71,6 +71,18 @@ Resources:
           StatusCode: 401
           ResponseTemplates:
             "application/json": '{"message": "Unauthorized"}'
+          ResponseParameters:
+            gatewayresponse.header.Access-Control-Allow-Origin: "'http://localhost:4200'"
+            gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
+            gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
+        FORBIDDEN:
+          StatusCode: 403
+          ResponseTemplates:
+            "application/json": '{"message": "Forbidden"}'
+          ResponseParameters:
+            gatewayresponse.header.Access-Control-Allow-Origin: "'http://localhost:4200'"
+            gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
+            gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
       DefinitionBody:
         openapi: 3.0.1
         info:
