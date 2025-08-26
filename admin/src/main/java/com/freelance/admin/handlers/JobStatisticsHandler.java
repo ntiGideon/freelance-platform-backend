@@ -107,7 +107,7 @@ public class JobStatisticsHandler implements RequestHandler<APIGatewayProxyReque
         } catch (Exception e) {
             context.getLogger().log("Error generating statistics: " + e.getMessage());
             e.printStackTrace();
-            return ResponseUtil.createErrorResponse(500, "Internal server error");
+            return ResponseUtil.createErrorResponse(500, e.getMessage());
         }
     }
 }

@@ -811,7 +811,7 @@ Resources:
       FunctionName: !Ref JobAdminRouterFunction
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*/admin/*"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*"
 
   CreateCategoryInvokePermission:
     Type: AWS::Lambda::Permission
