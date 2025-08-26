@@ -24,12 +24,39 @@ public class RequestMapper {
         if (path == null) {
             return null;
         }
+
         String[] parts = path.split("/");
-        if (parts.length >= 5) {
-            return parts[4];
+        if (parts.length >= 4 && "jobs".equals(parts[2])) {
+            return parts[3];
         }
         return null;
     }
+
+    /**
+     * Extracts job ID from path for various endpoints
+     */
+    public static String extractJobIdFromPath(String path, String basePath) {
+        if (path == null || basePath == null) {
+            return null;
+        }
+
+        if (path.startsWith(basePath)) {
+            String remainingPath = path.substring(basePath.length());
+            if (remainingPath.startsWith("/")) {
+                remainingPath = remainingPath.substring(1);
+            }
+
+            // Remove any trailing slashes or additional path segments
+            String[] parts = remainingPath.split("/");
+            if (parts.length > 0) {
+                return parts[0];
+            }
+        }
+        return null;
+    }
+
+
+
 
     /**
      * Extracts user ID from the API Gateway request context headers
