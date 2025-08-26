@@ -456,7 +456,7 @@ Resources:
         BackupPlanRule:
           - RuleName: DailyBackupRule
             TargetBackupVault: !Ref DynamoDBBackupVault
-            ScheduleExpression: "cron(0 5 * * ? *)" # Daily at 5 AM UTC
+            ScheduleExpression: "cron(0 5 * * ? *)"
             StartWindowMinutes: 60
             CompletionWindowMinutes: 180
             Lifecycle:
@@ -801,6 +801,17 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*"
+
+  ## =========================
+  ## Lambda Permissions for API Gateway
+  ## =========================
+  JobAdminRouterInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref JobAdminRouterFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*/admin/*"
 
   CreateCategoryInvokePermission:
     Type: AWS::Lambda::Permission
