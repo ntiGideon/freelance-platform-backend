@@ -52,9 +52,6 @@ jobs:
       - name: Validate SAM template
         run: sam validate --template ${{ env.SAM_TEMPLATE }}
 
-      - name: Compile Java code
-        run: mvn clean package -DskipTests
-
       - name: Build SAM application
         run: sam build --template ${{ env.SAM_TEMPLATE }} --parallel --cached
 
