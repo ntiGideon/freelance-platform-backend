@@ -41,9 +41,9 @@ public class ListAllJobsHandler implements RequestHandler<APIGatewayProxyRequest
                 return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
             }
 
-            if (!AdminAuthUtils.isAdminUser(userId)) {
-                return ResponseUtil.createErrorResponse(403, "Forbidden: Only admins can list all jobs");
-            }
+//            if (!AdminAuthUtils.isAdminUser(userId)) {
+//                return ResponseUtil.createErrorResponse(403, "Forbidden: Only admins can list all jobs");
+//            }
 
             // Get query parameters
             String statusFilter = RequestMapper.getQueryParameter(input, "status");
