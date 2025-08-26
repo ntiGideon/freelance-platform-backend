@@ -35,15 +35,11 @@ public class ListAllJobsHandler implements RequestHandler<APIGatewayProxyRequest
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         try {
-            String userId = RequestMapper.extractOwnerIdFromContext(input);
+            String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
 
             if (userId == null) {
                 return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
             }
-
-//            if (!AdminAuthUtils.isAdminUser(userId)) {
-//                return ResponseUtil.createErrorResponse(403, "Forbidden: Only admins can list all jobs");
-//            }
 
             // Get query parameters
             String statusFilter = RequestMapper.getQueryParameter(input, "status");
