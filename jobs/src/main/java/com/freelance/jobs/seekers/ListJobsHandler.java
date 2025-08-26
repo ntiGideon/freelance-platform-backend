@@ -236,7 +236,7 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
         return jobs.stream()
                 .filter(job -> categoryId == null || job.categoryId().equals(categoryId))
                 .filter(job -> query == null || matchesSearchQuery(job, query))
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
     }
 
     /**
