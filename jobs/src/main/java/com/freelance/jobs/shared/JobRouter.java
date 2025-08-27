@@ -127,6 +127,8 @@ public class JobRouter
         return new RejectJobHandler().handleRequest(input, context);
       } else if (path.matches("/job/owner/relist/[^/]+") && method.equals("POST")) {
         return new RelistJobHandler().handleRequest(input, context);
+      } else if (path.matches("/job/owner/delete/[^/]+") && method.equals("DELETE")) {
+        return new DeleteJobHandler().handleRequest(input, context);
       } else {
         return createErrorResponse(404, "Owner endpoint not found: " + method + " " + path);
       }
