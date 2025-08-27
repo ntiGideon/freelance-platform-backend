@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.freelance.jobs.owners.*;
 import com.freelance.jobs.seekers.*;
+import com.freelance.jobs.overview.OverviewHandler;
 import com.freelance.jobs.mappers.RequestMapper;
 import java.util.Map;
 
@@ -63,6 +64,9 @@ public class JobRouter
       } else if (path.startsWith("/job/owner")) {
         context.getLogger().log("Routing to owner handler");
         return routeOwnerRequest(input, context, userId);
+      } else if (path.equals("/jobs/overview") && httpMethod.equals("GET")) {
+        context.getLogger().log("Routing to overview handler");
+        return new OverviewHandler().handleRequest(input, context);
       } else {
         context.getLogger().log("Path not found: " + path);
         return createErrorResponse(404, "Path not found: " + path);
