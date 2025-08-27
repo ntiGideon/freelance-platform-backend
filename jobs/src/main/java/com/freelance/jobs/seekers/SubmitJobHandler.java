@@ -13,7 +13,9 @@ import com.freelance.jobs.mappers.JobEntityMapper;
 import com.freelance.jobs.mappers.RequestMapper;
 import com.freelance.jobs.model.SubmitJobRequest;
 import com.freelance.jobs.shared.ResponseUtil;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
@@ -60,7 +62,13 @@ public class SubmitJobHandler implements RequestHandler<APIGatewayProxyRequestEv
             String submissionMessage = null;
             if (input.getBody() != null && !input.getBody().trim().isEmpty()) {
                 try {
-                    SubmitJobRequest submitRequest = objectMapper.readValue(input.getBody(), SubmitJobRequest.class);
+                    // Handle base64 encoded request body
+                    String requestBody = input.getBody();
+                    if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded()) {
+                        requestBody = new String(Base64.getDecoder().decode(requestBody), StandardCharsets.UTF_8);
+                    }
+                    
+                    SubmitJobRequest submitRequest = objectMapper.readValue(requestBody, SubmitJobRequest.class);
                     if (!submitRequest.isValid()) {
                         return ResponseUtil.createErrorResponse(400, "Invalid request: message too long (max 1000 characters)");
                     }
@@ -112,26 +120,43 @@ public class SubmitJobHandler implements RequestHandler<APIGatewayProxyRequestEv
             validateJobForSubmission(currentJob, seekerId, now);
 
             // Atomic update to set status to "submitted" with optional message
-            String updateExpression = submissionMessage != null ? 
-                "SET #status = :submittedStatus, #submittedAt = :submittedAt, #updatedAt = :updatedAt, #submissionMessage = :submissionMessage" :
-                "SET #status = :submittedStatus, #submittedAt = :submittedAt, #updatedAt = :updatedAt";
+            String updateExpression;
+            Map<String, String> expressionAttributeNames;
+            Map<String, AttributeValue> expressionAttributeValues;
             
-            Map<String, String> expressionAttributeNames = Map.of(
-                    "#status", "status",
-                    "#claimerId", "claimerId",
-                    "#submittedAt", "submittedAt",
-                    "#updatedAt", "updatedAt",
-                    "#submissionMessage", "submissionMessage"
-            );
-            
-            Map<String, AttributeValue> expressionAttributeValues = Map.of(
-                    ":submittedStatus", AttributeValue.builder().s("submitted").build(),
-                    ":claimedStatus", AttributeValue.builder().s("claimed").build(),
-                    ":seekerId", AttributeValue.builder().s(seekerId).build(),
-                    ":submittedAt", AttributeValue.builder().s(now.toString()).build(),
-                    ":updatedAt", AttributeValue.builder().s(now.toString()).build(),
-                    ":submissionMessage", AttributeValue.builder().s(submissionMessage != null ? submissionMessage : "").build()
-            );
+            if (submissionMessage != null) {
+                updateExpression = "SET #status = :submittedStatus, #submittedAt = :submittedAt, #updatedAt = :updatedAt, #submissionMessage = :submissionMessage";
+                expressionAttributeNames = Map.of(
+                        "#status", "status",
+                        "#claimerId", "claimerId",
+                        "#submittedAt", "submittedAt",
+                        "#updatedAt", "updatedAt",
+                        "#submissionMessage", "submissionMessage"
+                );
+                expressionAttributeValues = Map.of(
+                        ":submittedStatus", AttributeValue.builder().s("submitted").build(),
+                        ":claimedStatus", AttributeValue.builder().s("claimed").build(),
+                        ":seekerId", AttributeValue.builder().s(seekerId).build(),
+                        ":submittedAt", AttributeValue.builder().s(now.toString()).build(),
+                        ":updatedAt", AttributeValue.builder().s(now.toString()).build(),
+                        ":submissionMessage", AttributeValue.builder().s(submissionMessage).build()
+                );
+            } else {
+                updateExpression = "SET #status = :submittedStatus, #submittedAt = :submittedAt, #updatedAt = :updatedAt";
+                expressionAttributeNames = Map.of(
+                        "#status", "status",
+                        "#claimerId", "claimerId",
+                        "#submittedAt", "submittedAt",
+                        "#updatedAt", "updatedAt"
+                );
+                expressionAttributeValues = Map.of(
+                        ":submittedStatus", AttributeValue.builder().s("submitted").build(),
+                        ":claimedStatus", AttributeValue.builder().s("claimed").build(),
+                        ":seekerId", AttributeValue.builder().s(seekerId).build(),
+                        ":submittedAt", AttributeValue.builder().s(now.toString()).build(),
+                        ":updatedAt", AttributeValue.builder().s(now.toString()).build()
+                );
+            }
             
             UpdateItemRequest updateRequest = UpdateItemRequest.builder()
                     .tableName(jobsTableName)

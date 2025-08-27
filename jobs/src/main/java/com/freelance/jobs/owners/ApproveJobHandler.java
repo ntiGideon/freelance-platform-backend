@@ -13,7 +13,9 @@ import com.freelance.jobs.mappers.JobEntityMapper;
 import com.freelance.jobs.mappers.RequestMapper;
 import com.freelance.jobs.model.ApproveJobRequest;
 import com.freelance.jobs.shared.ResponseUtil;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
@@ -60,7 +62,13 @@ public class ApproveJobHandler
       String approvalMessage = null;
       if (input.getBody() != null && !input.getBody().trim().isEmpty()) {
           try {
-              ApproveJobRequest approveRequest = objectMapper.readValue(input.getBody(), ApproveJobRequest.class);
+              // Handle base64 encoded request body
+              String requestBody = input.getBody();
+              if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded()) {
+                  requestBody = new String(Base64.getDecoder().decode(requestBody), StandardCharsets.UTF_8);
+              }
+              
+              ApproveJobRequest approveRequest = objectMapper.readValue(requestBody, ApproveJobRequest.class);
               if (!approveRequest.isValid()) {
                   return ResponseUtil.createErrorResponse(400, "Invalid request: message too long (max 1000 characters)");
               }

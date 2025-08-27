@@ -64,7 +64,7 @@ public class JobRouter
       } else if (path.startsWith("/job/owner")) {
         context.getLogger().log("Routing to owner handler");
         return routeOwnerRequest(input, context, userId);
-      } else if (path.equals("/jobs/overview") && httpMethod.equals("GET")) {
+      } else if (path.equals("/job/overview") && httpMethod.equals("GET")) {
         context.getLogger().log("Routing to overview handler");
         return new OverviewHandler().handleRequest(input, context);
       } else {
