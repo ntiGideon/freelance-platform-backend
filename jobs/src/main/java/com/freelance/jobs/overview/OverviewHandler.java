@@ -63,14 +63,12 @@ public class OverviewHandler implements RequestHandler<APIGatewayProxyRequestEve
             List<Map<String, AttributeValue>> claimerJobs = getUserJobsAsClaimer(userId);
 
             // Calculate statistics
-            int totalJobs = ownerJobs.size();
+            int totalJobs = ownerJobs.size(); // Jobs user has posted/owns
             int totalClaimedJobs = (int) claimerJobs.stream()
-                    .filter(job -> "CLAIMED".equals(getStringValue(job, "status")) || 
-                                  "SUBMITTED".equals(getStringValue(job, "status")) ||
-                                  "APPROVED".equals(getStringValue(job, "status")))
+                    .filter(job -> "claimed".equals(getStringValue(job, "status")))
                     .count();
             int totalSubmittedJobs = (int) claimerJobs.stream()
-                    .filter(job -> "SUBMITTED".equals(getStringValue(job, "status")))
+                    .filter(job -> "submitted".equals(getStringValue(job, "status")))
                     .count();
             int totalPostedJobs = totalJobs;
 
@@ -150,7 +148,7 @@ public class OverviewHandler implements RequestHandler<APIGatewayProxyRequestEve
                 .forEach(job -> {
                     try {
                         LocalDateTime claimedAt = LocalDateTime.parse(getStringValue(job, "claimedAt"));
-                        String description = "claimed " + getStringValue(job, "title");
+                        String description = "claimed " + getStringValue(job, "name");
                         activities.add(new RecentActivity(
                                 claimedAt.format(formatter),
                                 "Claimed",
@@ -163,12 +161,12 @@ public class OverviewHandler implements RequestHandler<APIGatewayProxyRequestEve
 
         // Add submitted activities
         claimerJobs.stream()
-                .filter(job -> "SUBMITTED".equals(getStringValue(job, "status")) && 
+                .filter(job -> "submitted".equals(getStringValue(job, "status")) && 
                               getStringValue(job, "submittedAt") != null)
                 .forEach(job -> {
                     try {
                         LocalDateTime submittedAt = LocalDateTime.parse(getStringValue(job, "submittedAt"));
-                        String description = "submitted " + getStringValue(job, "title");
+                        String description = "submitted " + getStringValue(job, "name");
                         activities.add(new RecentActivity(
                                 submittedAt.format(formatter),
                                 "Submitted",
@@ -185,7 +183,7 @@ public class OverviewHandler implements RequestHandler<APIGatewayProxyRequestEve
                 .forEach(job -> {
                     try {
                         LocalDateTime createdAt = LocalDateTime.parse(getStringValue(job, "createdAt"));
-                        String description = "posted " + getStringValue(job, "title");
+                        String description = "posted " + getStringValue(job, "name");
                         activities.add(new RecentActivity(
                                 createdAt.format(formatter),
                                 "Posted",
