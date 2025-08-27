@@ -47,15 +47,14 @@ public class RelistJobHandler implements RequestHandler<APIGatewayProxyRequestEv
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         try {
-            String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
-            String adminId = RequestMapper.extractUserIdFromContext(input, "user");
-
-            if (jobId == null) {
-                return ResponseUtil.createErrorResponse(400, "Job ID not found in path");
+            String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
+            if (userId == null) {
+                return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
             }
 
-            if (adminId == null || !AdminAuthUtils.isAdminUser(adminId)) {
-                return ResponseUtil.createErrorResponse(403, "Forbidden: Only admins can relist jobs");
+            String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
+            if (jobId == null) {
+                return ResponseUtil.createErrorResponse(400, "Job ID not found in path");
             }
 
             String requestBody = input.getBody();
@@ -64,10 +63,10 @@ public class RelistJobHandler implements RequestHandler<APIGatewayProxyRequestEv
             }
             RelistOptions options = parseRelistOptions(requestBody);
 
-            context.getLogger().log("Admin " + adminId + " relisting job " + jobId);
+            context.getLogger().log("Admin " + userId + " relisting job " + jobId);
 
             // Relist the job
-            JobEntity relistedJob = relistJob(jobId, adminId, options, context);
+            JobEntity relistedJob = relistJob(jobId, userId, options, context);
 
             // Publish job.created event (since it's available again)
             publishJobCreatedEvent(relistedJob, context);
@@ -78,7 +77,7 @@ public class RelistJobHandler implements RequestHandler<APIGatewayProxyRequestEv
                     "status", "open",
                     "newExpiryDate", relistedJob.expiryDate(),
                     "relistedAt", relistedJob.updatedAt(),
-                    "relistedBy", adminId
+                    "relistedBy", userId
             ));
 
         } catch (JobNotRelistableException e) {
@@ -86,7 +85,7 @@ public class RelistJobHandler implements RequestHandler<APIGatewayProxyRequestEv
         } catch (Exception e) {
             context.getLogger().log("Error relisting job: " + e.getMessage());
             e.printStackTrace();
-            return ResponseUtil.createErrorResponse(500, "Internal server error");
+            return ResponseUtil.createErrorResponse(500, e.getMessage());
         }
     }
 

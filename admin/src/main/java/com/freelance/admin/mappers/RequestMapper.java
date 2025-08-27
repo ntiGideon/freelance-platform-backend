@@ -16,7 +16,7 @@ public class RequestMapper {
     /**
      * Extracts job ID from the API Gateway path
      * Expected path format: /.../.../.../{jobId}
-     * 
+     *
      * @param path The request path
      * @return Job ID or null if not found
      */
@@ -24,17 +24,49 @@ public class RequestMapper {
         if (path == null) {
             return null;
         }
+
         String[] parts = path.split("/");
-        if (parts.length >= 5) {
-            return parts[4];
+
+        if (parts.length >= 5 && "job".equals(parts[2]) && "delete".equals(parts[4])) {
+            return parts[3];
+        }
+
+        else if (parts.length >= 4 && "job".equals(parts[2])) {
+            return parts[3];
         }
         return null;
     }
 
     /**
+     * Extracts job ID from path for various endpoints
+     */
+    public static String extractJobIdFromPath(String path, String basePath) {
+        if (path == null || basePath == null) {
+            return null;
+        }
+
+        if (path.startsWith(basePath)) {
+            String remainingPath = path.substring(basePath.length());
+            if (remainingPath.startsWith("/")) {
+                remainingPath = remainingPath.substring(1);
+            }
+
+            // Remove any trailing slashes or additional path segments
+            String[] parts = remainingPath.split("/");
+            if (parts.length > 0) {
+                return parts[0];
+            }
+        }
+        return null;
+    }
+
+
+
+
+    /**
      * Extracts user ID from the API Gateway request context headers
-     * 
-     * @param input API Gateway request event
+     *
+     * @param input    API Gateway request event
      * @param userType Type of user ("owner" or "seeker") - for documentation only
      * @return User ID or null if not found
      */
@@ -51,7 +83,7 @@ public class RequestMapper {
 
     /**
      * Extracts owner ID from the API Gateway request context
-     * 
+     *
      * @param input API Gateway request event
      * @return Owner ID
      */
@@ -61,7 +93,7 @@ public class RequestMapper {
 
     /**
      * Extracts seeker ID from the API Gateway request context
-     * 
+     *
      * @param input API Gateway request event
      * @return Seeker ID
      */
@@ -71,9 +103,9 @@ public class RequestMapper {
 
     /**
      * Extracts query parameter from API Gateway request event
-     * 
-     * @param input API Gateway request event
-     * @param paramName Parameter name
+     *
+     * @param input        API Gateway request event
+     * @param paramName    Parameter name
      * @param defaultValue Default value if parameter not found
      * @return Parameter value or default
      */
@@ -87,8 +119,8 @@ public class RequestMapper {
 
     /**
      * Extracts query parameter from API Gateway request event
-     * 
-     * @param input API Gateway request event
+     *
+     * @param input     API Gateway request event
      * @param paramName Parameter name
      * @return Parameter value or null
      */
@@ -104,14 +136,58 @@ public class RequestMapper {
         APIGatewayProxyRequestEvent.ProxyRequestContext requestContext = input.getRequestContext();
         if (requestContext != null) {
             Map<String, Object> authorizer = requestContext.getAuthorizer();
-            if (authorizer != null && authorizer.containsKey("claims")) {
+            if (authorizer != null) {
+
+                // Check multiple possible locations for the user ID
+                String userId = extractUserIdFromAuthorizer(authorizer);
+                if (userId != null) {
+                    return userId;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String extractUserIdFromAuthorizer(Map<String, Object> authorizer) {
+        // Try different possible locations for the user ID
+
+        // 1. Check if claims are directly in authorizer
+        if (authorizer.containsKey("claims")) {
+            try {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> claims = (Map<String, Object>) authorizer.get("claims");
                 if (claims != null && claims.containsKey("sub")) {
                     return (String) claims.get("sub");
                 }
+            } catch (Exception e) {
+                System.out.println("Error parsing claims: " + e.getMessage());
             }
         }
+
+        // 2. Check if sub is directly in authorizer
+        if (authorizer.containsKey("sub")) {
+            return (String) authorizer.get("sub");
+        }
+
+        // 3. Check for Cognito username
+        if (authorizer.containsKey("cognito:username")) {
+            return (String) authorizer.get("cognito:username");
+        }
+
+        // 4. Check for username
+        if (authorizer.containsKey("username")) {
+            return (String) authorizer.get("username");
+        }
+
+        // 5. Check for user id in other common locations
+        if (authorizer.containsKey("principalId")) {
+            return (String) authorizer.get("principalId");
+        }
+
+        if (authorizer.containsKey("user_id")) {
+            return (String) authorizer.get("user_id");
+        }
+
         return null;
     }
 
@@ -134,21 +210,49 @@ public class RequestMapper {
         APIGatewayProxyRequestEvent.ProxyRequestContext requestContext = input.getRequestContext();
         if (requestContext != null) {
             Map<String, Object> authorizer = requestContext.getAuthorizer();
-            if (authorizer != null && authorizer.containsKey("claims")) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> claims = (Map<String, Object>) authorizer.get("claims");
-                if (claims != null && claims.containsKey("cognito:groups")) {
-                    Object groups = claims.get("cognito:groups");
-                    if (groups instanceof List) {
-                        @SuppressWarnings("unchecked")
-                        List<String> groupsList = (List<String>) groups;
-                        if (!groupsList.isEmpty()) {
-                            return groupsList.get(0);
-                        }
-                    } else if (groups instanceof String) {
-                        return (String) groups;
-                    }
+            if (authorizer != null) {
+                // Check for Cognito User Pool claims (they come through differently)
+                if (authorizer.containsKey("claims")) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> claims = (Map<String, Object>) authorizer.get("claims");
+                    return extractRoleFromClaims(claims);
                 }
+                // For Lambda authorizers or other setups
+                else if (authorizer.containsKey("cognito:groups")) {
+                    Object groups = authorizer.get("cognito:groups");
+                    return extractRoleFromGroups(groups);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String extractRoleFromClaims(Map<String, Object> claims) {
+        if (claims.containsKey("cognito:groups")) {
+            Object groups = claims.get("cognito:groups");
+            return extractRoleFromGroups(groups);
+        }
+        return null;
+    }
+
+    private static String extractRoleFromGroups(Object groups) {
+        if (groups instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<String> groupsList = (List<String>) groups;
+            if (groupsList.contains("ADMIN")) {
+                return "ADMIN";
+            } else if (!groupsList.isEmpty()) {
+                return groupsList.get(0); // Return first group as role
+            }
+        } else if (groups instanceof String) {
+            String groupsString = (String) groups;
+            if (groupsString.contains("ADMIN")) {
+                return "ADMIN";
+            }
+            // Handle comma-separated groups
+            String[] groupArray = groupsString.split(",");
+            if (groupArray.length > 0) {
+                return groupArray[0].trim();
             }
         }
         return null;

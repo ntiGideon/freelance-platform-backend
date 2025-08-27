@@ -45,11 +45,11 @@ public class JobAdminRouter
       String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
       String userEmail = RequestMapper.extractUserEmailFromRequestContext(input);
       String userRole = RequestMapper.extractUserRoleFromRequestContext(input);
-      
+
       if (userId == null) {
         return createErrorResponse(401, "Unauthorized: User ID not found");
       }
-      
+
       // Validate that user has ADMIN role for admin operations
       if (!"ADMIN".equals(userRole)) {
         context.getLogger().log("Invalid user role for admin operations: " + userRole);
@@ -58,9 +58,6 @@ public class JobAdminRouter
 
       context.getLogger().log("Admin user validation passed. Routing request...");
 
-      if(!AdminAuthUtils.isAdminUser(userId)){
-        return createErrorResponse(403, "Forbidden: User does not belongs to admin group!");
-      }
 
       // Route to appropriate handler based on path
       if (path.startsWith("/admin")) {
@@ -72,7 +69,7 @@ public class JobAdminRouter
     } catch (Exception e) {
       context.getLogger().log("Error processing request: " + e.getMessage());
       e.printStackTrace();
-      return createErrorResponse(500, "Internal server error");
+      return createErrorResponse(500, e.getMessage());
     }
   }
 
@@ -104,12 +101,15 @@ public class JobAdminRouter
       } else if (path.matches("/admin/job/[^/]+/relist") && method.equals("POST")) {
         return new RelistJobHandler().handleRequest(input, context);
 
-      } else {
+      } else if (path.matches("/admin/job/[^/]+/delete") && method.equals("DELETE")) {
+        return new DeleteJobHandler().handleRequest(input, context);
+      }
+      else {
         return createErrorResponse(404, "Admin endpoint not found: " + method + " " + path);
       }
     } catch (Exception e) {
       context.getLogger().log("Error in admin route: " + e.getMessage());
-      return createErrorResponse(500, "Error processing admin request");
+      return createErrorResponse(500, e.getMessage());
     }
   }
 

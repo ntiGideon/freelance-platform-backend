@@ -47,14 +47,10 @@ public class RejectJobHandler implements RequestHandler<APIGatewayProxyRequestEv
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         try {
             String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
-            String userId = RequestMapper.extractUserIdFromContext(input, "user");
+            String userId = RequestMapper.extractUserIdFromRequestContext(input, "admin");
 
             if (jobId == null) {
                 return ResponseUtil.createErrorResponse(400, "Job ID not found in path");
-            }
-
-            if (!AdminAuthUtils.isAdminUser(userId)) {
-                return ResponseUtil.createErrorResponse(403, "Forbidden: Only admins can reject jobs at this far");
             }
 
             // Handle base64 encoded request body and parse rejection reason

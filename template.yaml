@@ -45,6 +45,12 @@ Resources:
     Properties:
       Name: !Sub "${Environment}-freelance-platform-api"
       StageName: !Sub "${Environment}"
+      MethodSettings:
+        - LoggingLevel: INFO
+          MetricsEnabled: true
+          DataTraceEnabled: true
+          ResourcePath: "/*"
+          HttpMethod: "*"
       EndpointConfiguration: REGIONAL
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
@@ -188,6 +194,28 @@ Resources:
                 type: cognito_user_pools
                 providerARNs:
                   - !GetAtt UserPool.Arn
+
+  ## =========================
+  ## CloudWatch Logging Resources
+  ## =========================
+  CloudWatchLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+      Path: /
+
+  ApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt CloudWatchLogRole.Arn
 
   ## =========================
   ## DynamoDB Tables
@@ -428,7 +456,7 @@ Resources:
         BackupPlanRule:
           - RuleName: DailyBackupRule
             TargetBackupVault: !Ref DynamoDBBackupVault
-            ScheduleExpression: "cron(0 5 * * ? *)" # Daily at 5 AM UTC
+            ScheduleExpression: "cron(0 5 * * ? *)"
             StartWindowMinutes: 60
             CompletionWindowMinutes: 180
             Lifecycle:
@@ -770,6 +798,17 @@ Resources:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref JobRouterFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*"
+
+  ## =========================
+  ## Lambda Permissions for API Gateway
+  ## =========================
+  JobAdminRouterInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref JobAdminRouterFunction
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*"
@@ -1492,12 +1531,14 @@ Resources:
       CodeUri: admin/
       Handler: com.freelance.admin.shared.JobAdminRouter::handleRequest
       Timeout: 60
+      Tracing: Active
       Environment:
         Variables:
           JOBS_TABLE_NAME: !Ref JobsTable
           CATEGORIES_TABLE_NAME: !Ref CategoriesTable
           EVENT_BUS_NAME: !Ref JobsEventBus
           AWS_ACCOUNT_ID: !Ref AWS::AccountId
+          LOG_LEVEL: DEBUG
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref JobsTable
@@ -1512,7 +1553,13 @@ Resources:
               Action:
                 - cognito-idp:AdminListGroupsForUser
               Resource: !GetAtt UserPool.Arn
-
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: arn:aws:logs:*:*:*
 
 Outputs:
   ## Unified API Gateway Output

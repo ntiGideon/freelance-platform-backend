@@ -64,6 +64,12 @@
             <version>${aws.sdk.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>dynamodb-enhanced</artifactId>
+            <version>2.20.0</version>
+        </dependency>
+
         <!-- AWS SDK v2 - SES -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
