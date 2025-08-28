@@ -26,15 +26,6 @@ public class PostConfirmationHandler implements RequestHandler<CognitoUserPoolPo
     @Override
     public CognitoUserPoolPostConfirmationEvent handleRequest (CognitoUserPoolPostConfirmationEvent event, Context context) {
         
-        // --- Add debug log here ---
-        try {
-            String fullEventJson = objectMapper.writeValueAsString( event );
-            System.out.println( "DEBUG - Full PostConfirmation event: " + fullEventJson );
-        } catch ( Exception e ) {
-            System.out.println( "DEBUG - Could not serialize event: " + e.getMessage() );
-            System.out.println( "DEBUG - Fallback event.toString(): " + event.toString() );
-        }
-        
         LambdaLogger logger = context.getLogger();
         if ( "PostConfirmation_ConfirmSignUp".equals( event.getTriggerSource() ) ) {
             if ( STATE_MACHINE_ARN == null || STATE_MACHINE_ARN.isEmpty() ) {
