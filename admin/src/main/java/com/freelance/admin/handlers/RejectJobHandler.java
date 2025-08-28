@@ -11,6 +11,7 @@ import com.freelance.admin.events.JobRejectedEvent;
 import com.freelance.admin.exceptions.JobNotSubmittedException;
 import com.freelance.admin.mappers.JobEntityMapper;
 import com.freelance.admin.mappers.RequestMapper;
+import com.freelance.admin.model.RejectJobRequest;
 import com.freelance.admin.shared.ResponseUtil;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
@@ -53,12 +54,22 @@ public class RejectJobHandler implements RequestHandler<APIGatewayProxyRequestEv
                 return ResponseUtil.createErrorResponse(400, "Job ID not found in path");
             }
 
-            // Handle base64 encoded request body and parse rejection reason
-            String requestBody = input.getBody();
-            if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded()) {
-                requestBody = new String(Base64.getDecoder().decode(requestBody), StandardCharsets.UTF_8);
+            String rejectionReason = null;
+            if (input.getBody() != null && !input.getBody().trim().isEmpty()) {
+                try {
+                    String requestBody = input.getBody();
+                    if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded()) {
+                        requestBody = new String(Base64.getDecoder().decode(requestBody), StandardCharsets.UTF_8);
+                    }
+                    RejectJobRequest rejectRequest = objectMapper.readValue(requestBody, RejectJobRequest.class);
+                    if (!rejectRequest.isValid()) {
+                        return ResponseUtil.createErrorResponse(400, rejectRequest.getValidationError());
+                    }
+                    rejectionReason = rejectRequest.trimmedReason();
+                } catch (Exception e) {
+                    return ResponseUtil.createErrorResponse(400, "Invalid JSON in request body");
+                }
             }
-            String rejectionReason = parseRejectionReason(requestBody);
 
             context.getLogger().log("Admin " + userId + " rejecting job " + jobId);
 
@@ -164,25 +175,6 @@ public class RejectJobHandler implements RequestHandler<APIGatewayProxyRequestEv
 
         if (job.claimerId() == null || job.claimerId().isEmpty()) {
             throw new JobNotSubmittedException("Job has no claimer");
-        }
-    }
-
-    private String parseRejectionReason(String requestBody) {
-        try {
-            if (requestBody == null || requestBody.trim().isEmpty()) {
-                return "No reason provided";
-            }
-
-            Map<String, Object> body = objectMapper.readValue(requestBody, Map.class);
-            Object reason = body.get("reason");
-
-            if (reason != null && !reason.toString().trim().isEmpty()) {
-                return reason.toString().trim();
-            }
-
-            return "No reason provided";
-        } catch (Exception e) {
-            return "No reason provided";
         }
     }
 

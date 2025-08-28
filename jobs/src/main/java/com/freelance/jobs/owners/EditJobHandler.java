@@ -38,14 +38,14 @@ public class EditJobHandler implements RequestHandler<APIGatewayProxyRequestEven
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         try {
             String ownerId = RequestMapper.extractOwnerIdFromContext(input);
-            String jobId = input.getPathParameters().get("jobId");
+            String jobId = RequestMapper.extractJobIdFromPath(input.getPath());
             
             if (ownerId == null) {
                 return ResponseUtil.createErrorResponse(401, "Unauthorized: User ID not found");
             }
             
             if (jobId == null || jobId.trim().isEmpty()) {
-                return ResponseUtil.createErrorResponse(400, "Job ID is required");
+                return ResponseUtil.createErrorResponse(400, "Job ID not found in path");
             }
 
             // Handle base64 encoded request body
