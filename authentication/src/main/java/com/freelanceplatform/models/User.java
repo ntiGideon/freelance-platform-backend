@@ -20,7 +20,6 @@ public class User implements Serializable {
     private String lastname;
     private String phonenumber;
     private List<String> jobCategoryIds;
-    private String role;
     
     @DynamoDbPartitionKey
     public String getUserId() {
@@ -38,10 +37,6 @@ public class User implements Serializable {
     
     public void setEmail(String email) {
         this.email = email;
-    }
-    
-    public void setRole(String role){
-        this.role = role;
     }
     
     public void setFirstname(String firstname) {
@@ -82,9 +77,5 @@ public class User implements Serializable {
     
     public List<String> getJobCategoryIds () {
         return jobCategoryIds;
-    }
-    
-    public String getRole () {
-        return role;
     }
 }
