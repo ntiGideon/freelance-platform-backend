@@ -30,6 +30,12 @@ Parameters:
     Description: "Schedule expression for Cognito backup job (UTC)"
     AllowedPattern: "^cron\\(.*\\)$"
 
+  GitHubToken:
+    Type: String
+    Default: ""
+    Description: "GitHub personal access token for Amplify (leave empty to skip Amplify deployment)"
+    NoEcho: true
+
 Globals:
   Function:
     Runtime: java17
@@ -1561,11 +1567,116 @@ Resources:
                 - logs:PutLogEvents
               Resource: arn:aws:logs:*:*:*
 
+  ## =========================
+  ## AWS Amplify Hosting
+  ## =========================
+  
+  # IAM Role for Amplify Service
+  AmplifyServiceRole:
+    Type: AWS::IAM::Role
+    Condition: DeployAmplify
+    Properties:
+      RoleName: !Sub "${Environment}-amplify-service-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: amplify.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AmplifyHostingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/amplify/*"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+
+  # Amplify App
+  FreelancePlatformAmplifyApp:
+    Type: AWS::Amplify::App
+    Condition: DeployAmplify
+    Properties:
+      Name: !Sub "${Environment}-freelance-platform-frontend"
+      Description: "Angular frontend for Freelance Platform"
+      Repository: "https://github.com/elitekaycy/job-hub-freelance.git"
+      AccessToken: "{{resolve:secretsmanager:github-access-token:SecretString:token}}"
+      BuildSpec: |
+        version: 1
+        frontend:
+          phases:
+            preBuild:
+              commands:
+                - npm ci
+            build:
+              commands:
+                - npm run build
+          artifacts:
+            baseDirectory: dist/job-hub-frontend
+            files:
+              - '**/*'
+          cache:
+            paths:
+              - node_modules/**/*
+      EnvironmentVariables:
+        - Name: USER_POOL_ID
+          Value: !Ref UserPool
+        - Name: USER_POOL_CLIENT_ID
+          Value: !Ref UserPoolClient
+        - Name: REGION
+          Value: !Ref AWS::Region
+        - Name: API_BASE_URL
+          Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+        - Name: COGNITO_DOMAIN
+          Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+      IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+
+  # Single Branch that adapts to Environment
+  FreelancePlatformAmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Condition: DeployAmplify
+    Properties:
+      AppId: !GetAtt FreelancePlatformAmplifyApp.AppId
+      BranchName: staging-test
+      Description: "Branch for staging-test environment deployment"
+      EnableAutoBuild: true
+      EnablePullRequestPreview: true
+      EnvironmentVariables:
+        - Name: NODE_ENV
+          Value: !If [IsProd, "production", "development"]
+        - Name: ENVIRONMENT
+          Value: !Ref Environment
+        - Name: API_BASE_URL
+          Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Branch
+          Value: staging-test
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, "prod"]
+  DeployAmplify: !Not [!Equals [!Ref GitHubToken, ""]]
+
 Outputs:
   ## Unified API Gateway Output
   FreelancePlatformApiUrl:
     Description: "Unified Freelance Platform API URL"
-    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
     Export:
       Name: !Sub "${Environment}-freelance-api-url"
 
@@ -1722,3 +1833,18 @@ Outputs:
     Value: !Ref CognitoBackupFunction
     Export:
       Name: !Sub "${Environment}-cognito-backup-function"
+
+  ## Amplify Hosting Outputs
+  AmplifyAppId:
+    Condition: DeployAmplify
+    Description: "Amplify App ID"
+    Value: !GetAtt FreelancePlatformAmplifyApp.AppId
+    Export:
+      Name: !Sub "${Environment}-amplify-app-id"
+
+  AmplifyAppUrl:
+    Condition: DeployAmplify
+    Description: "Amplify App URL for environment deployment"
+    Value: !Sub "https://staging-test.${FreelancePlatformAmplifyApp.AppId}.amplifyapp.com"
+    Export:
+      Name: !Sub "${Environment}-amplify-app-url"
