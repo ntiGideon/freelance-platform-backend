@@ -36,6 +36,11 @@ Parameters:
     Description: "GitHub personal access token for Amplify (leave empty to skip Amplify deployment)"
     NoEcho: true
 
+  AmplifyUrl:
+    Type: String
+    Default: ""
+    Description: "Full Amplify URL for CORS configuration (e.g. https://staging-test.d2j19f2rl4mf4c.amplifyapp.com)"
+
 Globals:
   Function:
     Runtime: java17
@@ -61,7 +66,7 @@ Resources:
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-User-ID,X-User-Email,X-User-Role,Accept,Accept-Language,Content-Language,X-Requested-With'"
-        AllowOrigin: "'http://localhost:4200'"
+        AllowOrigin: !Sub "'${AmplifyUrl}'"
         MaxAge: "'86400'"
         AllowCredentials: false
       BinaryMediaTypes:
@@ -178,7 +183,7 @@ Resources:
             responseTemplates:
               "application/json": '{"message": "Unauthorized"}'
             responseParameters:
-              "gatewayresponse.header.Access-Control-Allow-Origin": "'http://localhost:4200'"
+              "gatewayresponse.header.Access-Control-Allow-Origin": !Sub "'${AmplifyUrl}'"
               "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
               "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
           ACCESS_DENIED:
@@ -186,7 +191,7 @@ Resources:
             responseTemplates:
               "application/json": '{"message": "Forbidden"}'
             responseParameters:
-              "gatewayresponse.header.Access-Control-Allow-Origin": "'http://localhost:4200'"
+              "gatewayresponse.header.Access-Control-Allow-Origin": !Sub "'${AmplifyUrl}'"
               "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
               "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
         components:
@@ -786,6 +791,7 @@ Resources:
         Variables:
           JOBS_TABLE_NAME: !Ref JobsTable
           CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+          CORS_ALLOWED_ORIGINS: !Ref AmplifyUrl
           EVENT_BUS_NAME: !Ref JobsEventBus
           AWS_ACCOUNT_ID: !Ref AWS::AccountId
       Policies:
@@ -1541,6 +1547,7 @@ Resources:
       Environment:
         Variables:
           JOBS_TABLE_NAME: !Ref JobsTable
+          CORS_ALLOWED_ORIGINS: !Ref AmplifyUrl
           CATEGORIES_TABLE_NAME: !Ref CategoriesTable
           EVENT_BUS_NAME: !Ref JobsEventBus
           AWS_ACCOUNT_ID: !Ref AWS::AccountId

@@ -12,9 +12,10 @@ public class ResponseUtil {
   private static final Map<String, String> DEFAULT_HEADERS =
       Map.of(
           "Content-Type", "application/json",
-          "Access-Control-Allow-Origin", "http://localhost:4200",
+          "Access-Control-Allow-Origin", "https://staging-test.d2j19f2rl4mf4c.amplifyapp.com",
           "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-          "Access-Control-Allow-Headers", "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With");
+          "Access-Control-Allow-Headers",
+              "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With");
 
   private ResponseUtil() {}
 
@@ -81,4 +82,3 @@ public class ResponseUtil {
     }
   }
 }
-
