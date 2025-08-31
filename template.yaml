@@ -1628,12 +1628,16 @@ Resources:
               commands:
                 - npm run build
           artifacts:
-            baseDirectory: dist/job-hub/browser
+            baseDirectory: dist/job-hub-frontend
             files:
               - '**/*'
           cache:
             paths:
               - node_modules/**/*
+      CustomRules:
+        - Source: "/<*>"
+          Target: "/index.html"
+          Status: "200"
       IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
       Tags:
         - Key: Environment
