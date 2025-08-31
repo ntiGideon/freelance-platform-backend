@@ -14,11 +14,11 @@ import java.util.Map;
 
 public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
     
-    public static final String USER = "USER";
     private final DynamoDbEnhancedClient dynamoDbClient = DynamoDbEnhancedClient.create();
     private final String USERS_TABLE = System.getenv( "USERS_TABLE" );
     
     @Override
+    @SuppressWarnings( "unchecked" )
     public Map<String, Object> handleRequest (Map<String, Object> input, Context context) {
         
         LambdaLogger logger = context.getLogger();
@@ -36,7 +36,6 @@ public class SaveUserDataHandler implements RequestHandler<Map<String, Object>, 
         user.setMiddlename( (String) input.getOrDefault( "middlename", "" ) );
         user.setLastname( (String) input.get( "lastname" ) );
         user.setPhonenumber( (String) input.getOrDefault( "phonenumber", "" ) );
-        user.setRole( USER );
         user.setJobCategoryIds( (List<String>) input.get( "jobCategoryIds" ) );
         
         // Save to DynamoDB

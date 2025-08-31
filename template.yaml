@@ -1212,14 +1212,6 @@ Resources:
           Value: FreelancePlatform
 
   ###################################
-  # SNS Topic for Job Alerts
-  ###################################
-  JobAlertsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !Sub "JobAlertsTopic-${Environment}"
-
-  ###################################
   # Cognito User Pool, Groups(Roles) and Client
   ###################################
   UserPool:
@@ -1419,6 +1411,38 @@ Resources:
           USERS_TABLE: !Ref UsersTable
           ACCOUNTS_TABLE: !Ref AccountsTable
           ENVIRONMENT: !Ref Environment
+
+  UpdateUserProfileLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "UpdateUserProfileLambda-${Environment}"
+      CodeUri: authentication/
+      Handler: com.freelanceplatform.handlers.users.UpdateUserProfileHandler::handleRequest
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref CategoriesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Subscribe
+                - sns:Unsubscribe
+                - sns:ListSubscriptionsByTopic
+              Resource: "*"
+      Environment:
+        Variables:
+          CATEGORIES_TABLE: !Ref CategoriesTable
+          USERS_TABLE: !Ref UsersTable
+      Events:
+        ApiUpdateProfile:
+          Type: Api
+          Properties:
+            Path: /users/profile
+            RestApiId: !Ref FreelancePlatformApi
+            Method: put
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   ###################################
   # Step Functions
