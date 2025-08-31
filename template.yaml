@@ -1634,10 +1634,6 @@ Resources:
           cache:
             paths:
               - node_modules/**/*
-      CustomRules:
-        - Source: "/<*>"
-          Target: "/index.html"
-          Status: "200"
       IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
       Tags:
         - Key: Environment
