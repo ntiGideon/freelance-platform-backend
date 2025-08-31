@@ -1624,11 +1624,14 @@ Resources:
             preBuild:
               commands:
                 - npm ci
+                - echo "USER_POOL_ID=$USER_POOL_ID" >> .env
+                - echo "USER_POOL_CLIENT_ID=$USER_POOL_CLIENT_ID" >> .env
+                - echo "API_BASE_URL=$API_BASE_URL" >> .env
             build:
               commands:
                 - npm run build
           artifacts:
-            baseDirectory: dist/job-hub-frontend
+            baseDirectory: dist/job-hub/browser
             files:
               - '**/*'
           cache:
@@ -1639,12 +1642,12 @@ Resources:
           Value: !Ref UserPool
         - Name: USER_POOL_CLIENT_ID
           Value: !Ref UserPoolClient
-        - Name: REGION
-          Value: !Ref AWS::Region
         - Name: API_BASE_URL
           Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
-        - Name: COGNITO_DOMAIN
-          Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+        - Name: NODE_ENV
+          Value: !If [IsProd, "production", "development"]
+        - Name: ENVIRONMENT
+          Value: !Ref Environment
       IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
       Tags:
         - Key: Environment
@@ -1661,19 +1664,23 @@ Resources:
       BranchName: !If [IsProd, "main", !Ref Environment]
       Description: !Sub "Branch for ${Environment} environment deployment"
       EnableAutoBuild: true
-      EnablePullRequestPreview: true
+      EnablePullRequestPreview: !If [IsProd, false, true]
       EnvironmentVariables:
+        - Name: USER_POOL_ID
+          Value: !Ref UserPool
+        - Name: USER_POOL_CLIENT_ID
+          Value: !Ref UserPoolClient
+        - Name: API_BASE_URL
+          Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
         - Name: NODE_ENV
           Value: !If [IsProd, "production", "development"]
         - Name: ENVIRONMENT
           Value: !Ref Environment
-        - Name: API_BASE_URL
-          Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
       Tags:
         - Key: Environment
           Value: !Ref Environment
         - Key: Branch
-          Value: staging-test
+          Value: !If [IsProd, "main", !Ref Environment]
 
 Conditions:
   IsProd: !Equals [!Ref Environment, "prod"]
