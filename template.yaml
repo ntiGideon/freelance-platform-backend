@@ -1634,17 +1634,6 @@ Resources:
           cache:
             paths:
               - node_modules/**/*
-      EnvironmentVariables:
-        - Name: USER_POOL_ID
-          Value: !Ref UserPool
-        - Name: USER_POOL_CLIENT_ID
-          Value: !Ref UserPoolClient
-        - Name: REGION
-          Value: !Ref AWS::Region
-        - Name: API_BASE_URL
-          Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
-        - Name: COGNITO_DOMAIN
-          Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
       CustomRules:
         - Source: "/<*>"
           Target: "/index.html"
@@ -1662,22 +1651,15 @@ Resources:
     Condition: DeployAmplify
     Properties:
       AppId: !GetAtt FreelancePlatformAmplifyApp.AppId
-      BranchName: staging-test
-      Description: "Branch for staging-test environment deployment"
+      BranchName: !If [IsProd, "main", !Ref Environment]
+      Description: !Sub "Branch for ${Environment} environment deployment"
       EnableAutoBuild: true
       EnablePullRequestPreview: true
-      EnvironmentVariables:
-        - Name: NODE_ENV
-          Value: !If [IsProd, "production", "development"]
-        - Name: ENVIRONMENT
-          Value: !Ref Environment
-        - Name: API_BASE_URL
-          Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
       Tags:
         - Key: Environment
           Value: !Ref Environment
         - Key: Branch
-          Value: staging-test
+          Value: !If [IsProd, "main", !Ref Environment]
 
 Conditions:
   IsProd: !Equals [!Ref Environment, "prod"]
