@@ -27,12 +27,15 @@ public class JobAdminRouter
       // Handle OPTIONS preflight requests for CORS
       if ("OPTIONS".equals(httpMethod)) {
         context.getLogger().log("Handling OPTIONS preflight request");
+        String allowedOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        if (allowedOrigins == null || allowedOrigins.isEmpty()) {
+          allowedOrigins = "http://localhost:4200";
+        }
         return new APIGatewayProxyResponseEvent()
             .withStatusCode(200)
             .withHeaders(
                 Map.of(
-                    "Access-Control-Allow-Origin",
-                        "https://staging-test.d2j19f2rl4mf4c.amplifyapp.com",
+                    "Access-Control-Allow-Origin", allowedOrigins,
                     "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
                     "Access-Control-Allow-Headers",
                         "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With",

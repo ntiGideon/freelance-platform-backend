@@ -4,10 +4,16 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      amplify_url:
+        description: 'Amplify URL override (optional)'
+        required: false
+        type: string
 
 env:
   SAM_TEMPLATE: template.yaml
   REGION: eu-central-1
+  AMPLIFY_URL: https://main.d3dn8nbt12390c.amplifyapp.com
 
 permissions:
   id-token: write
@@ -55,15 +61,60 @@ jobs:
       - name: Build SAM application
         run: sam build --template ${{ env.SAM_TEMPLATE }} --use-container --parallel --cached
 
+      - name: Determine Amplify URL
+        id: amplify-url
+        run: |
+          if [ -n "${{ github.event.inputs.amplify_url }}" ]; then
+            echo "amplify_url=${{ github.event.inputs.amplify_url }}" >> $GITHUB_OUTPUT
+            echo "Using manual override: ${{ github.event.inputs.amplify_url }}"
+          else
+            echo "amplify_url=${{ env.AMPLIFY_URL }}" >> $GITHUB_OUTPUT
+            echo "Using environment variable: ${{ env.AMPLIFY_URL }}"
+          fi
+
       - name: Deploy to Prod
         run: |
           sam deploy \
             --stack-name freelance-platform-prod \
-            --parameter-overrides Environment=prod \
+            --parameter-overrides \
+              Environment=prod \
+              AmplifyUrl="${{ steps.amplify-url.outputs.amplify_url }}" \
+              GitHubToken="${{ secrets.GITHUB_TOKEN }}" \
             --region ${{ env.REGION }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_NAMED_IAM \
             --role-arn ${{ secrets.DEV_CLOUDFORMATION_ROLE }} \
             --s3-bucket aws-sam-cli-managed-prod-pipeline-artifactsbucket-elitekaycy \
             --no-progressbar
+
+      - name: Get deployment outputs
+        id: outputs
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name freelance-platform-prod \
+            --query 'Stacks[0].Outputs[?OutputKey==`FreelancePlatformApiUrl`].OutputValue' \
+            --output text)
+          
+          AMPLIFY_URL=$(aws cloudformation describe-stacks \
+            --stack-name freelance-platform-prod \
+            --query 'Stacks[0].Outputs[?OutputKey==`AmplifyAppUrl`].OutputValue' \
+            --output text)
+          
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "amplify_url=$AMPLIFY_URL" >> $GITHUB_OUTPUT
+
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Production Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** prod" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack Name:** freelance-platform-prod" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** ${{ steps.outputs.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Amplify URL:** ${{ steps.outputs.outputs.amplify_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Amplify Branch Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Amplify is configured to use the \`main\` branch for production**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### CORS Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "The API is configured to accept requests from: \`${{ steps.amplify-url.outputs.amplify_url }}\`" >> $GITHUB_STEP_SUMMARY

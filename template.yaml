@@ -38,8 +38,8 @@ Parameters:
 
   AmplifyUrl:
     Type: String
-    Default: ""
-    Description: "Full Amplify URL for CORS configuration (e.g. https://staging-test.d2j19f2rl4mf4c.amplifyapp.com)"
+    Default: "https://staging-test.d3dn8nbt12390c.amplifyapp.com"
+    Description: "Full Amplify URL for CORS configuration"
 
 Globals:
   Function:
@@ -67,7 +67,7 @@ Resources:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-User-ID,X-User-Email,X-User-Role,Accept,Accept-Language,Content-Language,X-Requested-With'"
         AllowOrigin: !Sub "'${AmplifyUrl}'"
-        MaxAge: "'86400'"
+        MaxAge: "'7200'"
         AllowCredentials: false
       BinaryMediaTypes:
         - "*/*"
@@ -786,7 +786,7 @@ Resources:
       FunctionName: !Sub "${Environment}-JobRouter"
       CodeUri: jobs/
       Handler: com.freelance.jobs.shared.JobRouter::handleRequest
-      Timeout: 60
+      Timeout: 61
       Environment:
         Variables:
           JOBS_TABLE_NAME: !Ref JobsTable
@@ -1658,8 +1658,8 @@ Resources:
     Condition: DeployAmplify
     Properties:
       AppId: !GetAtt FreelancePlatformAmplifyApp.AppId
-      BranchName: staging-test
-      Description: "Branch for staging-test environment deployment"
+      BranchName: !If [IsProd, "main", !Ref Environment]
+      Description: !Sub "Branch for ${Environment} environment deployment"
       EnableAutoBuild: true
       EnablePullRequestPreview: true
       EnvironmentVariables:

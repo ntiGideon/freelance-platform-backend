@@ -9,13 +9,18 @@ public class ResponseUtil {
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
-  private static final Map<String, String> DEFAULT_HEADERS =
-      Map.of(
-          "Content-Type", "application/json",
-          "Access-Control-Allow-Origin", "https://staging-test.d2j19f2rl4mf4c.amplifyapp.com",
-          "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-          "Access-Control-Allow-Headers",
-              "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With");
+  private static Map<String, String> getDefaultHeaders() {
+    String allowedOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+    if (allowedOrigins == null || allowedOrigins.isEmpty()) {
+      allowedOrigins = "http://localhost:4200";
+    }
+    return Map.of(
+        "Content-Type", "application/json",
+        "Access-Control-Allow-Origin", allowedOrigins,
+        "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+        "Access-Control-Allow-Headers",
+            "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With");
+  }
 
   private ResponseUtil() {}
 
@@ -30,7 +35,7 @@ public class ResponseUtil {
     try {
       return new APIGatewayProxyResponseEvent()
           .withStatusCode(statusCode)
-          .withHeaders(DEFAULT_HEADERS)
+          .withHeaders(getDefaultHeaders())
           .withBody(objectMapper.writeValueAsString(body));
     } catch (Exception e) {
       throw new RuntimeException("Error creating success response", e);
@@ -49,7 +54,7 @@ public class ResponseUtil {
       Map<String, String> errorBody = Map.of("error", message);
       return new APIGatewayProxyResponseEvent()
           .withStatusCode(statusCode)
-          .withHeaders(DEFAULT_HEADERS)
+          .withHeaders(getDefaultHeaders())
           .withBody(objectMapper.writeValueAsString(errorBody));
     } catch (Exception e) {
       return new APIGatewayProxyResponseEvent()
@@ -73,7 +78,7 @@ public class ResponseUtil {
           Map.of("error", message, "details", details != null ? details : "");
       return new APIGatewayProxyResponseEvent()
           .withStatusCode(statusCode)
-          .withHeaders(DEFAULT_HEADERS)
+          .withHeaders(getDefaultHeaders())
           .withBody(objectMapper.writeValueAsString(errorBody));
     } catch (Exception e) {
       return new APIGatewayProxyResponseEvent()
