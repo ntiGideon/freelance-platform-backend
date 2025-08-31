@@ -4,16 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      amplify_url:
-        description: 'Amplify URL override (optional)'
-        required: false
-        type: string
 
 env:
   SAM_TEMPLATE: template.yaml
   REGION: eu-central-1
-  AMPLIFY_URL: https://main.d3dn8nbt12390c.amplifyapp.com
 
 permissions:
   id-token: write
@@ -61,24 +55,12 @@ jobs:
       - name: Build SAM application
         run: sam build --template ${{ env.SAM_TEMPLATE }} --use-container --parallel --cached
 
-      - name: Determine Amplify URL
-        id: amplify-url
-        run: |
-          if [ -n "${{ github.event.inputs.amplify_url }}" ]; then
-            echo "amplify_url=${{ github.event.inputs.amplify_url }}" >> $GITHUB_OUTPUT
-            echo "Using manual override: ${{ github.event.inputs.amplify_url }}"
-          else
-            echo "amplify_url=${{ env.AMPLIFY_URL }}" >> $GITHUB_OUTPUT
-            echo "Using environment variable: ${{ env.AMPLIFY_URL }}"
-          fi
-
       - name: Deploy to Prod
         run: |
           sam deploy \
             --stack-name freelance-platform-prod \
             --parameter-overrides \
               Environment=prod \
-              AmplifyUrl="${{ steps.amplify-url.outputs.amplify_url }}" \
               GitHubToken="${{ secrets.GITHUB_TOKEN }}" \
             --region ${{ env.REGION }} \
             --no-confirm-changeset \
@@ -117,4 +99,4 @@ jobs:
           echo "✅ **Amplify is configured to use the \`main\` branch for production**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### CORS Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "The API is configured to accept requests from: \`${{ steps.amplify-url.outputs.amplify_url }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "The API is configured with dynamic CORS based on AmplifyUrl parameter in the stack" >> $GITHUB_STEP_SUMMARY
