@@ -4,10 +4,10 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.freelance.jobs.mappers.RequestMapper;
+import com.freelance.jobs.overview.OverviewHandler;
 import com.freelance.jobs.owners.*;
 import com.freelance.jobs.seekers.*;
-import com.freelance.jobs.overview.OverviewHandler;
-import com.freelance.jobs.mappers.RequestMapper;
 import java.util.Map;
 
 /**
@@ -29,14 +29,19 @@ public class JobRouter
       // Handle OPTIONS preflight requests for CORS
       if ("OPTIONS".equals(httpMethod)) {
         context.getLogger().log("Handling OPTIONS preflight request");
+        String allowedOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        if (allowedOrigins == null || allowedOrigins.isEmpty()) {
+          allowedOrigins = "http://localhost:4200";
+        }
         return new APIGatewayProxyResponseEvent()
             .withStatusCode(200)
-            .withHeaders(Map.of(
-                "Access-Control-Allow-Origin", "http://localhost:4200",
-                "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-                "Access-Control-Allow-Headers", "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With",
-                "Access-Control-Max-Age", "86400"
-            ))
+            .withHeaders(
+                Map.of(
+                    "Access-Control-Allow-Origin", allowedOrigins,
+                    "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+                    "Access-Control-Allow-Headers",
+                        "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With",
+                    "Access-Control-Max-Age", "86400"))
             .withBody("");
       }
 
@@ -44,11 +49,11 @@ public class JobRouter
       String userId = RequestMapper.extractUserIdFromRequestContext(input, "user");
       String userEmail = RequestMapper.extractUserEmailFromRequestContext(input);
       String userRole = RequestMapper.extractUserRoleFromRequestContext(input);
-      
+
       if (userId == null) {
         return createErrorResponse(401, "Unauthorized: User ID not found");
       }
-      
+
       // Validate that user has USER role for job operations
       if (!RequestMapper.isValidUserRole(userRole)) {
         context.getLogger().log("Invalid user role: " + userRole);
@@ -112,7 +117,8 @@ public class JobRouter
     try {
       if (path.equals("/job/owner/create") && method.equals("POST")) {
         context.getLogger().log("Calling CreateJobHandler...");
-        APIGatewayProxyResponseEvent response = new CreateJobHandler().handleRequest(input, context);
+        APIGatewayProxyResponseEvent response =
+            new CreateJobHandler().handleRequest(input, context);
         context.getLogger().log("CreateJobHandler completed");
         return response;
       } else if (path.equals("/job/owner/list") && method.equals("GET")) {
@@ -138,7 +144,6 @@ public class JobRouter
     }
   }
 
-
   private APIGatewayProxyResponseEvent createErrorResponse(int statusCode, String message) {
     return new APIGatewayProxyResponseEvent()
         .withStatusCode(statusCode)
@@ -149,4 +154,3 @@ public class JobRouter
         .withBody("{\"error\":\"" + message + "\"}");
   }
 }
-

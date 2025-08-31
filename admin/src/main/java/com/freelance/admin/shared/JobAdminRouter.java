@@ -4,11 +4,8 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-import com.freelance.admin.auth.AdminAuthUtils;
 import com.freelance.admin.handlers.*;
 import com.freelance.admin.mappers.RequestMapper;
-
-
 import java.util.Map;
 
 /**
@@ -30,14 +27,19 @@ public class JobAdminRouter
       // Handle OPTIONS preflight requests for CORS
       if ("OPTIONS".equals(httpMethod)) {
         context.getLogger().log("Handling OPTIONS preflight request");
+        String allowedOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        if (allowedOrigins == null || allowedOrigins.isEmpty()) {
+          allowedOrigins = "http://localhost:4200";
+        }
         return new APIGatewayProxyResponseEvent()
             .withStatusCode(200)
-            .withHeaders(Map.of(
-                "Access-Control-Allow-Origin", "http://localhost:4200",
-                "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-                "Access-Control-Allow-Headers", "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With",
-                "Access-Control-Max-Age", "86400"
-            ))
+            .withHeaders(
+                Map.of(
+                    "Access-Control-Allow-Origin", allowedOrigins,
+                    "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+                    "Access-Control-Allow-Headers",
+                        "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With",
+                    "Access-Control-Max-Age", "86400"))
             .withBody("");
       }
 
@@ -58,7 +60,6 @@ public class JobAdminRouter
 
       context.getLogger().log("Admin user validation passed. Routing request...");
 
-
       // Route to appropriate handler based on path
       if (path.startsWith("/admin")) {
         return routeAdminRequest(input, context, userId);
@@ -73,10 +74,8 @@ public class JobAdminRouter
     }
   }
 
-
-
   private APIGatewayProxyResponseEvent routeAdminRequest(
-          APIGatewayProxyRequestEvent input, Context context, String userId) {
+      APIGatewayProxyRequestEvent input, Context context, String userId) {
     String path = input.getPath();
     String method = input.getHttpMethod();
 
@@ -103,8 +102,7 @@ public class JobAdminRouter
 
       } else if (path.matches("/admin/job/[^/]+/delete") && method.equals("DELETE")) {
         return new DeleteJobHandler().handleRequest(input, context);
-      }
-      else {
+      } else {
         return createErrorResponse(404, "Admin endpoint not found: " + method + " " + path);
       }
     } catch (Exception e) {
@@ -112,7 +110,6 @@ public class JobAdminRouter
       return createErrorResponse(500, e.getMessage());
     }
   }
-
 
   private APIGatewayProxyResponseEvent createErrorResponse(int statusCode, String message) {
     return new APIGatewayProxyResponseEvent()
@@ -122,8 +119,8 @@ public class JobAdminRouter
                 "Content-Type", "application/json",
                 "Access-Control-Allow-Origin", "http://localhost:4200",
                 "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-                "Access-Control-Allow-Headers", "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With"))
+                "Access-Control-Allow-Headers",
+                    "Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With"))
         .withBody("{\"error\":\"" + message + "\"}");
   }
 }
-

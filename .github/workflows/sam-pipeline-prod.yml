@@ -59,11 +59,44 @@ jobs:
         run: |
           sam deploy \
             --stack-name freelance-platform-prod \
-            --parameter-overrides Environment=prod \
+            --parameter-overrides \
+              Environment=prod \
+              GitHubToken="${{ secrets.GITHUB_TOKEN }}" \
             --region ${{ env.REGION }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_NAMED_IAM \
             --role-arn ${{ secrets.DEV_CLOUDFORMATION_ROLE }} \
             --s3-bucket aws-sam-cli-managed-prod-pipeline-artifactsbucket-elitekaycy \
             --no-progressbar
+
+      - name: Get deployment outputs
+        id: outputs
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name freelance-platform-prod \
+            --query 'Stacks[0].Outputs[?OutputKey==`FreelancePlatformApiUrl`].OutputValue' \
+            --output text)
+          
+          AMPLIFY_URL=$(aws cloudformation describe-stacks \
+            --stack-name freelance-platform-prod \
+            --query 'Stacks[0].Outputs[?OutputKey==`AmplifyAppUrl`].OutputValue' \
+            --output text)
+          
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "amplify_url=$AMPLIFY_URL" >> $GITHUB_OUTPUT
+
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Production Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** prod" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack Name:** freelance-platform-prod" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** ${{ steps.outputs.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Amplify URL:** ${{ steps.outputs.outputs.amplify_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Amplify Branch Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Amplify is configured to use the \`main\` branch for production**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### CORS Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "The API is configured with dynamic CORS based on AmplifyUrl parameter in the stack" >> $GITHUB_STEP_SUMMARY
