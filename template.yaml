@@ -1628,12 +1628,27 @@ Resources:
               commands:
                 - npm run build
           artifacts:
-            baseDirectory: dist/job-hub-frontend
+            baseDirectory: dist/job-hub-freelance
             files:
               - '**/*'
           cache:
             paths:
               - node_modules/**/*
+      EnvironmentVariables:
+        - Name: USER_POOL_ID
+          Value: !Ref UserPool
+        - Name: USER_POOL_CLIENT_ID
+          Value: !Ref UserPoolClient
+        - Name: REGION
+          Value: !Ref AWS::Region
+        - Name: API_BASE_URL
+          Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+        - Name: COGNITO_DOMAIN
+          Value: !Sub "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+      CustomRules:
+        - Source: "/<*>"
+          Target: "/index.html"
+          Status: "404-200"
       IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
       Tags:
         - Key: Environment
@@ -1647,15 +1662,22 @@ Resources:
     Condition: DeployAmplify
     Properties:
       AppId: !GetAtt FreelancePlatformAmplifyApp.AppId
-      BranchName: !If [IsProd, "main", !Ref Environment]
-      Description: !Sub "Branch for ${Environment} environment deployment"
+      BranchName: staging-test
+      Description: "Branch for staging-test environment deployment"
       EnableAutoBuild: true
-      EnablePullRequestPreview: !If [IsProd, false, true]
+      EnablePullRequestPreview: true
+      EnvironmentVariables:
+        - Name: NODE_ENV
+          Value: !If [IsProd, "production", "development"]
+        - Name: ENVIRONMENT
+          Value: !Ref Environment
+        - Name: API_BASE_URL
+          Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
       Tags:
         - Key: Environment
           Value: !Ref Environment
         - Key: Branch
-          Value: !If [IsProd, "main", !Ref Environment]
+          Value: staging-test
 
 Conditions:
   IsProd: !Equals [!Ref Environment, "prod"]
