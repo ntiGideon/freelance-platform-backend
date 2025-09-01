@@ -8,6 +8,7 @@ on:
 env:
   SAM_TEMPLATE: template.yaml
   REGION: eu-central-1
+  AMPLIFY_URL: "https://dev.d1syaiq38xs6yn.amplifyapp.com"
 
 permissions:
   id-token: write
@@ -59,7 +60,9 @@ jobs:
         run: |
           sam deploy \
             --stack-name freelance-platform-dev \
-            --parameter-overrides Environment=dev \
+            --parameter-overrides \
+              Environment=dev \
+              AmplifyUrl="${{ env.AMPLIFY_URL }}" \
             --region ${{ env.REGION }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
