@@ -63,7 +63,7 @@ jobs:
             --region ${{ env.REGION }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_NAMED_IAM \
             --role-arn ${{ secrets.DEV_CLOUDFORMATION_ROLE }} \
             --s3-bucket aws-sam-cli-managed-dev-pipeline-artifactsbucket-elitekaycy \
             --no-progressbar

@@ -59,9 +59,7 @@ jobs:
         run: |
           sam deploy \
             --stack-name freelance-platform-prod \
-            --parameter-overrides \
-              Environment=prod \
-              GitHubToken="${{ secrets.GITHUB_TOKEN }}" \
+            --parameter-overrides Environment=prod \
             --region ${{ env.REGION }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
