@@ -34,7 +34,7 @@ Parameters:
 
   AmplifyUrl:
     Type: String
-    Default: "https://staging-test.d3dn8nbt12390c.amplifyapp.com"
+    Default: "https://dev.d1syaiq38xs6yn.amplifyapp.com"
     Description: "Full Amplify URL for CORS configuration"
 
 Globals:
