@@ -30,10 +30,6 @@ Parameters:
     Description: "Schedule expression for Cognito backup job (UTC)"
     AllowedPattern: "^cron\\(.*\\)$"
 
-  GitHubToken:
-    Type: String
-    Default: ""
-    Description: "GitHub personal access token for Amplify (leave empty to skip Amplify deployment)"
     NoEcho: true
 
   AmplifyUrl:
@@ -1687,7 +1683,7 @@ Resources:
 
 Conditions:
   IsProd: !Equals [!Ref Environment, "prod"]
-  DeployAmplify: !Not [!Equals [!Ref GitHubToken, ""]]
+  DeployAmplify: !Not [!Equals [!Ref Environment, "test"]]
 
 Outputs:
   ## Unified API Gateway Output
