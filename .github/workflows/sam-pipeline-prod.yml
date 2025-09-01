@@ -46,7 +46,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.REGION }}
-          role-to-assume: ${{ secrets.DEV_PIPELINE_ROLE }}
+          role-to-assume: ${{ secrets.PROD_PIPELINE_ROLE }}
           role-session-name: sam-pipeline
           role-duration-seconds: 3600
 
@@ -67,7 +67,7 @@ jobs:
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
             --capabilities CAPABILITY_NAMED_IAM \
-            --role-arn ${{ secrets.DEV_CLOUDFORMATION_ROLE }} \
+            --role-arn ${{ secrets.PROD_CLOUDFORMATION_ROLE }} \
             --s3-bucket aws-sam-cli-managed-prod-pipeline-artifactsbucket-elitekaycy \
             --no-progressbar
 
