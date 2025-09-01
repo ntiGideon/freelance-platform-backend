@@ -1,18 +1,42 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: |
-  Freelance Platform Backend SAM Template
-  - Java 17 Lambdas for user onboarding and deletion cleanup
-  - Cognito User Pool with PostConfirmation trigger
-  - Step Functions orchestrating onboarding and deletion workflows
-  - DynamoDB tables for Users and Accounts
+Description: >
+  Freelance Job/Task Platform
+  
+  Unified serverless freelance platform with single API Gateway.
+
 Parameters:
   Environment:
     Type: String
-    AllowedValues:
-      - dev
-      - prod
-    Description: Environment name (dev or prod)
+    Default: dev
+    AllowedValues: [dev, prod, staging-test]
+    Description: Environment name
+
+  UsersTableName:
+    Type: String
+    Default: dev-UsersTable
+    Description: Name of the existing Users table
+
+  BackupRetentionDays:
+    Type: Number
+    Default: 35
+    Description: Number of days to retain DynamoDB backups
+    MinValue: 1
+    MaxValue: 35
+
+  BackupScheduleExpression:
+    Type: String
+    Default: "cron(0 2 * * ? *)"
+    Description: "Schedule expression for Cognito backup job (UTC)"
+    AllowedPattern: "^cron\\(.*\\)$"
+
+    NoEcho: true
+
+  AmplifyUrl:
+    Type: String
+    Default: "https://dev.d1syaiq38xs6yn.amplifyapp.com"
+    Description: "Full Amplify URL for CORS configuration"
+
 Globals:
   Function:
     Runtime: java17
@@ -20,17 +44,1105 @@ Globals:
     Timeout: 30
 
 Resources:
-  ###################################
-  # API Gateway
-  ###################################
+  ## =========================
+  ## Freelance Platform API Gateway
+  ## =========================
   FreelancePlatformApi:
-    Type: AWS::ApiGateway::RestApi
+    Type: AWS::Serverless::Api
     Properties:
       Name: !Sub "${Environment}-freelance-platform-api"
-      Description: Freelance Platform REST API
-      EndpointConfiguration:
-        Types:
-          - REGIONAL
+      StageName: !Sub "${Environment}"
+      MethodSettings:
+        - LoggingLevel: INFO
+          MetricsEnabled: true
+          DataTraceEnabled: true
+          ResourcePath: "/*"
+          HttpMethod: "*"
+      EndpointConfiguration: REGIONAL
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-User-ID,X-User-Email,X-User-Role,Accept,Accept-Language,Content-Language,X-Requested-With'"
+        AllowOrigin: !Sub "'${AmplifyUrl}'"
+        MaxAge: "'7200'"
+        AllowCredentials: false
+      BinaryMediaTypes:
+        - "*/*"
+      TracingEnabled: true
+      Variables:
+        ENVIRONMENT: !Ref Environment
+      Tags:
+        Environment: !Ref Environment
+        Project: FreelancePlatform
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+            IdentitySource: "$request.header.Authorization"
+            AuthorizationScopes: []
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: !Sub "${Environment}-freelance-platform-api"
+          version: 1.0.0
+        paths:
+          "/job/{proxy+}":
+            options:
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobRouterFunction.Arn}/invocations"
+            get:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobRouterFunction.Arn}/invocations"
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobRouterFunction.Arn}/invocations"
+            put:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobRouterFunction.Arn}/invocations"
+            delete:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobRouterFunction.Arn}/invocations"
+          "/categories":
+            options:
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetCategoriesFunction.Arn}/invocations"
+            get:
+              x-amazon-apigateway-auth: 
+                type: NONE
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetCategoriesFunction.Arn}/invocations"
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateCategoryFunction.Arn}/invocations"
+          "/admin/{proxy+}":
+            options:
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+            get:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+            put:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+            delete:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobAdminRouterFunction.Arn}/invocations"
+        x-amazon-apigateway-gateway-responses:
+          UNAUTHORIZED:
+            statusCode: 401
+            responseTemplates:
+              "application/json": '{"message": "Unauthorized"}'
+            responseParameters:
+              "gatewayresponse.header.Access-Control-Allow-Origin": !Sub "'${AmplifyUrl}'"
+              "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
+              "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
+          ACCESS_DENIED:
+            statusCode: 403
+            responseTemplates:
+              "application/json": '{"message": "Forbidden"}'
+            responseParameters:
+              "gatewayresponse.header.Access-Control-Allow-Origin": !Sub "'${AmplifyUrl}'"
+              "gatewayresponse.header.Access-Control-Allow-Headers": "'Content-Type,Authorization,X-User-ID,X-User-Email,X-User-Role,Accept,X-Requested-With'"
+              "gatewayresponse.header.Access-Control-Allow-Methods": "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
+        components:
+          securitySchemes:
+            CognitoAuthorizer:
+              type: apiKey
+              name: Authorization
+              in: header
+              x-amazon-apigateway-authtype: cognito_user_pools
+              x-amazon-apigateway-authorizer:
+                type: cognito_user_pools
+                providerARNs:
+                  - !GetAtt UserPool.Arn
+
+  ## =========================
+  ## CloudWatch Logging Resources
+  ## =========================
+  CloudWatchLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+      Path: /
+
+  ApiGatewayAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt CloudWatchLogRole.Arn
+
+  ## =========================
+  ## DynamoDB Tables
+  ## =========================
+  CategoriesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-CategoriesTable"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: categoryId
+          AttributeType: S
+        - AttributeName: name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: categoryId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: NameIndex
+          KeySchema:
+            - AttributeName: name
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: Categories
+
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-JobsTable"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+        - AttributeName: categoryId
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: ownerId
+          AttributeType: S
+        - AttributeName: datePosted
+          AttributeType: S
+        - AttributeName: expiryDate
+          AttributeType: S
+        - AttributeName: claimerId
+          AttributeType: S
+        - AttributeName: claimedAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: CategoryStatusIndex
+          KeySchema:
+            - AttributeName: categoryId
+              KeyType: HASH
+            - AttributeName: status
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: OwnerJobsIndex
+          KeySchema:
+            - AttributeName: ownerId
+              KeyType: HASH
+            - AttributeName: datePosted
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: StatusExpiryIndex
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: expiryDate
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: ClaimerJobsIndex
+          KeySchema:
+            - AttributeName: claimerId
+              KeyType: HASH
+            - AttributeName: claimedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: Jobs
+
+  PaymentRecordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-PaymentRecordsTable"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: paymentId
+          AttributeType: S
+        - AttributeName: jobId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: paymentDate
+          AttributeType: S
+      KeySchema:
+        - AttributeName: paymentId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: JobIdIndex
+          KeySchema:
+            - AttributeName: jobId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: UserIdIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: paymentDate
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: Payments
+
+  ClaimsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-ClaimsTable"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: claimId
+          AttributeType: S
+        - AttributeName: jobId
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: claimerId
+          AttributeType: S
+        - AttributeName: claimedAt
+          AttributeType: S
+        - AttributeName: submissionDeadline
+          AttributeType: S
+      KeySchema:
+        - AttributeName: claimId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: JobClaimsIndex
+          KeySchema:
+            - AttributeName: jobId
+              KeyType: HASH
+            - AttributeName: status
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: ClaimerClaimsIndex
+          KeySchema:
+            - AttributeName: claimerId
+              KeyType: HASH
+            - AttributeName: claimedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: StatusDeadlineIndex
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: submissionDeadline
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: Jobs
+
+  ## =========================
+  ## DynamoDB Backup Configuration (Single Plan for All Tables)
+  ## =========================
+  DynamoDBBackupVault:
+    Type: AWS::Backup::BackupVault
+    Properties:
+      BackupVaultName: !Sub "${Environment}-DynamoDB-Backup-Vault"
+      BackupVaultTags:
+        Environment: !Ref Environment
+        Project: FreelancePlatform
+        Service: Backup
+
+  DynamoDBBackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: !Sub "${Environment}-DynamoDB-Backup-Plan"
+        BackupPlanRule:
+          - RuleName: DailyBackupRule
+            TargetBackupVault: !Ref DynamoDBBackupVault
+            ScheduleExpression: "cron(0 5 * * ? *)"
+            StartWindowMinutes: 60
+            CompletionWindowMinutes: 180
+            Lifecycle:
+              DeleteAfterDays: !Ref BackupRetentionDays
+            EnableContinuousBackup: true
+
+  BackupServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: backup.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: DynamoDBBackupAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:ListTagsOfResource
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - backup:StartBackupJob
+                  - backup:GetBackupVaultAccessPolicy
+                  - backup:PutBackupVaultAccessPolicy
+                Resource: "*"
+
+  ## =========================
+  ## Cognito User Pool Backup System
+  ## =========================
+  CognitoBackupUserPoolTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-CognitoBackupUserPool"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: backupTimestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: backupTimestamp
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+            - AttributeName: backupTimestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: CognitoBackup
+
+  CognitoBackupUserPoolSecondaryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${Environment}-CognitoBackupUserPool-Secondary"
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: backupTimestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: backupTimestamp
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+            - AttributeName: backupTimestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+        - Key: Service
+          Value: CognitoBackup
+
+  #### CognitoBackup
+  CognitoBackupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-CognitoBackupFunction"
+      CodeUri: cognito-backup/
+      Handler: com.freelance.cognito.backup.CognitoBackupHandler::handleRequest
+      Timeout: 300
+      Environment:
+        Variables:
+          PRIMARY_BACKUP_TABLE: !Ref CognitoBackupUserPoolTable
+          SECONDARY_BACKUP_TABLE: !Ref CognitoBackupUserPoolSecondaryTable
+          USER_POOL_ID: !Ref UserPool
+          BACKUP_TTL_DAYS: "90"
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+              Resource: !GetAtt UserPool.Arn
+            - Effect: Allow
+              Action:
+                - dynamodb:BatchWriteItem
+                - dynamodb:PutItem
+              Resource:
+                - !GetAtt CognitoBackupUserPoolTable.Arn
+                - !GetAtt CognitoBackupUserPoolSecondaryTable.Arn
+      Events:
+        BackupSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref BackupScheduleExpression
+            Name: !Sub "${Environment}-CognitoBackupSchedule"
+            Description: "Periodic backup of Cognito User Pool data to DynamoDB"
+            Enabled: true
+
+  ## =========================
+  ## EventBridge Resources
+  ## =========================
+  JobsEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub "${Environment}-freelance-jobs-events"
+
+  ## =========================
+  ## SNS Topic for Notifications
+  ## =========================
+  JobNotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${Environment}-job-notifications"
+      DisplayName: "Job Platform Notifications"
+
+  ## =========================
+  ## Job Expiry System
+  ## =========================
+  JobExpiryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${Environment}-job-expiry-queue.fifo"
+      FifoQueue: true
+      ContentBasedDeduplication: false
+      MessageRetentionPeriod: 1209600  # 14 days
+      VisibilityTimeout: 300    # 5 minutes
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt JobExpiryDeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  JobExpiryDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${Environment}-job-expiry-dlq.fifo"
+      FifoQueue: true
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  ## =========================
+  ## Job Timeout System
+  ## =========================
+  JobTimeoutQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${Environment}-job-timeout-queue.fifo"
+      FifoQueue: true
+      ContentBasedDeduplication: false
+      MessageRetentionPeriod: 1209600  # 14 days
+      VisibilityTimeout: 300    # 5 minutes
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt JobTimeoutDeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  JobTimeoutDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${Environment}-job-timeout-dlq.fifo"
+      FifoQueue: true
+      MessageRetentionPeriod: 1209600  # 14 days
+
+
+  #### Payment Processing Lambda Function
+  PaymentProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-PaymentProcessor"
+      CodeUri: payment/
+      Handler: com.freelance.payment.PaymentProcessorHandler::handleRequest
+      Runtime: java17
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          PAYMENT_RECORDS_TABLE: !Ref PaymentRecordsTable
+          ACCOUNTS_TABLE: !Ref AccountsTable
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt PaymentRecordsTable.Arn
+                - !GetAtt AccountsTable.Arn
+      Events:
+        PaymentTrigger:
+          Type: CloudWatchEvent
+          Properties:
+            EventBusName: !Ref JobsEventBus
+            Pattern:
+              source: [ "jobs-service" ]
+              detail-type: [ "job.approved" ]
+
+
+  ## =========================
+  ## Categories Lambda Functions
+  ## =========================
+  CreateCategoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-CreateCategory"
+      CodeUri: categories/
+      Handler: com.freelance.categories.CreateCategoryHandler::handleRequest
+      Environment:
+        Variables:
+          CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CategoriesTable
+
+  GetCategoriesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-GetCategories"
+      CodeUri: categories/
+      Handler: com.freelance.categories.GetCategoriesHandler::handleRequest
+      Environment:
+        Variables:
+          CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref CategoriesTable
+
+  CategoryStreamProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-CategoryStreamProcessor"
+      CodeUri: categories/
+      Handler: com.freelance.categories.CategoryStreamProcessor::handleRequest
+      Environment:
+        Variables:
+          CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CategoriesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:CreateTopic
+                - sns:GetTopicAttributes
+              Resource: "*"
+      Events:
+        CategoryStreamEvent:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt CategoriesTable.StreamArn
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+
+  ## =========================
+  ## Jobs Lambda Functions
+  ## =========================
+  JobRouterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobRouter"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.shared.JobRouter::handleRequest
+      Timeout: 61
+      Environment:
+        Variables:
+          JOBS_TABLE_NAME: !Ref JobsTable
+          CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+          CORS_ALLOWED_ORIGINS: !Ref AmplifyUrl
+          EVENT_BUS_NAME: !Ref JobsEventBus
+          AWS_ACCOUNT_ID: !Ref AWS::AccountId
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref CategoriesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !GetAtt JobsEventBus.Arn
+
+  ## Lambda Permissions for API Gateway
+  JobRouterInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref JobRouterFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*"
+
+  ## =========================
+  ## Lambda Permissions for API Gateway
+  ## =========================
+  JobAdminRouterInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref JobAdminRouterFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/*"
+
+  CreateCategoryInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CreateCategoryFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/POST/categories"
+
+  GetCategoriesInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GetCategoriesFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FreelancePlatformApi}/*/GET/categories"
+
+  HealthCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-HealthCheck"
+      CodeUri: health/
+      Handler: com.freelance.health.HealthCheckHandler::handleRequest
+      Runtime: java17
+      MemorySize: 512
+      Timeout: 30
+      Events:
+        HealthCheckApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FreelancePlatformApi
+            Path: /health
+            Method: GET
+
+  ## =========================
+  ## Event Processor Functions
+  ## =========================
+  JobCreatedProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobCreatedProcessor"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.events.processors.NotifyJobCategorySubscribersHandler::handleRequest
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: "*"
+      Events:
+        JobCreatedEvent:
+          Type: CloudWatchEvent
+          Properties:
+            EventBusName: !Ref JobsEventBus
+            Pattern:
+              source: ["jobs-service"]
+              detail-type: ["job.created"]
+
+  ## Job Notification Handler
+  JobNotificationHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobNotificationHandler"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.notifications.JobNotificationHandler::handleRequest
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+          FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}"
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+      Events:
+        NotificationTopic:
+          Type: SNS
+          Properties:
+            Topic: !Ref JobNotificationsTopic
+
+  ###### Payment Notification Handler
+  PaymentNotificationHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-PaymentNotificationHandler"
+      CodeUri: payment/
+      Handler: com.freelance.payment.notifications.PaymentNotificationHandler::handleRequest
+      Environment:
+        Variables:
+          USERS_TABLE_NAME: !Ref UsersTableName
+          FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
+      Events:
+        PaymentNotificationTopic:
+          Type: SNS
+          Properties:
+            Topic: !Ref JobNotificationsTopic
+
+  ## Event Processors - Forward to Centralized Topic
+  JobClaimedProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobClaimedProcessor"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.events.processors.JobClaimedProcessor::handleRequest
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
+      Events:
+        JobClaimedEvent:
+          Type: CloudWatchEvent
+          Properties:
+            EventBusName: !Ref JobsEventBus
+            Pattern:
+              source: ["jobs-service"]
+              detail-type: ["job.claimed"]
+
+  JobSubmittedProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobSubmittedProcessor"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.events.processors.JobSubmittedProcessor::handleRequest
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
+      Events:
+        JobSubmittedEvent:
+          Type: CloudWatchEvent
+          Properties:
+            EventBusName: !Ref JobsEventBus
+            Pattern:
+              source: ["jobs-service"]
+              detail-type: ["job.submitted"]
+
+  JobApprovedProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobApprovedProcessor"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.events.processors.JobApprovedProcessor::handleRequest
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
+      Events:
+        JobApprovedEvent:
+          Type: CloudWatchEvent
+          Properties:
+            EventBusName: !Ref JobsEventBus
+            Pattern:
+              source: ["jobs-service"]
+              detail-type: ["job.approved"]
+
+  JobRejectedProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobRejectedProcessor"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.events.processors.JobRejectedProcessor::handleRequest
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
+      Events:
+        JobRejectedEvent:
+          Type: CloudWatchEvent
+          Properties:
+            EventBusName: !Ref JobsEventBus
+            Pattern:
+              source: ["jobs-service"]
+              detail-type: ["job.rejected"]
+
+  ## =========================
+  ## Scheduler Functions
+  ## =========================
+  JobExpiryScannerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobExpiryScanner"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.schedulers.JobExpiryScanner::handleRequest
+      Timeout: 300  # 5 minutes
+      Environment:
+        Variables:
+          JOBS_TABLE_NAME: !Ref JobsTable
+          JOB_EXPIRY_QUEUE_URL: !Ref JobExpiryQueue
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt JobExpiryQueue.Arn
+      Events:
+        ExpirySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: "rate(5 minutes)"
+            Description: "Trigger job expiry scanner every 5 minutes"
+
+  JobExpiryProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobExpiryProcessor"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.schedulers.processors.JobExpiryProcessor::handleRequest
+      Timeout: 60
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
+      Events:
+        ExpiryQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt JobExpiryQueue.Arn
+            BatchSize: 10
+
+  JobTimeoutScannerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobTimeoutScanner"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.schedulers.JobTimeoutScanner::handleRequest
+      Timeout: 300
+      Environment:
+        Variables:
+          JOBS_TABLE_NAME: !Ref JobsTable
+          JOB_TIMEOUT_QUEUE_URL: !Ref JobTimeoutQueue
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt JobTimeoutQueue.Arn
+      Events:
+        TimeoutSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: "rate(2 minutes)"
+            Description: "Trigger job timeout scanner every 2 minutes"
+
+  JobTimeoutProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobTimeoutProcessor"
+      CodeUri: jobs/
+      Handler: com.freelance.jobs.schedulers.processors.JobTimeoutProcessor::handleRequest
+      Timeout: 60
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
+      Events:
+        TimeoutQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt JobTimeoutQueue.Arn
+            BatchSize: 10
 
   ###################################
   # DynamoDB Tables
@@ -40,17 +1152,37 @@ Resources:
     Properties:
       TableName: !Sub "UsersTable-${Environment}"
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
           AttributeType: S
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
 
   AccountsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub "AccountsTable-${Environment}"
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -67,14 +1199,13 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-
-  ###################################
-  # SNS Topic for Job Alerts
-  ###################################
-  JobAlertsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !Sub "JobAlertsTopic-${Environment}"
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
 
   ###################################
   # Cognito User Pool, Groups(Roles) and Client
@@ -87,6 +1218,8 @@ Resources:
         - email
       UsernameAttributes:
         - email
+      LambdaConfig:
+        PostConfirmation: !GetAtt PostConfirmationLambda.Arn
       Schema:
         - Name: email
           AttributeDataType: String
@@ -103,7 +1236,7 @@ Resources:
         - Name: middle_name
           AttributeDataType: String
           Mutable: true
-        - Name: custom:job_categories
+        - Name: job_category_ids
           AttributeDataType: String
           Mutable: true
         - Name: phone_number
@@ -120,20 +1253,21 @@ Resources:
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_SRP_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
       PreventUserExistenceErrors: ENABLED
-      AllowedOAuthFlowsUserPoolClient: True
+      CallbackURLs:
+        - https://www.example.com/callback   # for local testing
+      LogoutURLs:
+        - https://www.example.com/logout     # for local testing
+      AllowedOAuthFlows:
+        - code
+        - implicit
       AllowedOAuthScopes:
         - email
         - openid
         - profile
-      SupportedIdentityProviders:
-        - COGNITO
-
-  UserPoolDomain:
-    Type: AWS::Cognito::UserPoolDomain
-    Properties:
-      Domain: !Sub "freelance-platform-${Environment}"
-      UserPoolId: !Ref UserPool
+      AllowedOAuthFlowsUserPoolClient: true
 
   UserGroup:
     Type: AWS::Cognito::UserPoolGroup
@@ -151,6 +1285,12 @@ Resources:
       UserPoolId: !Ref UserPool
       Description: "Platform administrators"
 
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub "freelance-platform-${Environment}-${AWS::AccountId}"
+      UserPoolId: !Ref UserPool
+
   ###################################
   # Lambda Functions
   ###################################
@@ -158,7 +1298,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "PostConfirmationLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.PostConfirmationHandler::handleRequest
       Policies:
         - Statement:
@@ -169,7 +1309,7 @@ Resources:
             - Effect: Allow
               Action:
                 - cognito-idp:AdminAddUserToGroup
-              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}"
+              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
@@ -194,7 +1334,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "GenerateUserIdLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.GenerateUserIdHandler::handleRequest
       Environment:
         Variables:
@@ -204,7 +1344,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "SaveUserDataLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.SaveUserDataHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
@@ -218,7 +1358,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "CreateAccountLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.CreateAccountHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
@@ -232,25 +1372,30 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "SubscribeUserToSNSLambda-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.SubscribeUserToSNSHandler::handleRequest
       Policies:
         - Statement:
             - Effect: Allow
               Action:
                 - sns:Subscribe
-                - sns:SetSubscriptionAttributes
-              Resource: !Ref JobAlertsTopic
+              Resource: "*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:BatchGetItem
+              Resource: !GetAtt CategoriesTable.Arn
       Environment:
         Variables:
-          SNS_TOPIC_ARN: !Ref JobAlertsTopic
+          CATEGORIES_TABLE: !Ref CategoriesTable
           ENVIRONMENT: !Ref Environment
 
   DeleteUserHandler:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "DeleteUserHandler-${Environment}"
-      CodeUri: .
+      CodeUri: authentication/
       Handler: com.freelanceplatform.handlers.users.DeleteUserHandler::handleRequest
       Policies:
         - DynamoDBCrudPolicy:
@@ -262,6 +1407,38 @@ Resources:
           USERS_TABLE: !Ref UsersTable
           ACCOUNTS_TABLE: !Ref AccountsTable
           ENVIRONMENT: !Ref Environment
+
+  UpdateUserProfileLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "UpdateUserProfileLambda-${Environment}"
+      CodeUri: authentication/
+      Handler: com.freelanceplatform.handlers.users.UpdateUserProfileHandler::handleRequest
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref CategoriesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sns:Subscribe
+                - sns:Unsubscribe
+                - sns:ListSubscriptionsByTopic
+              Resource: "*"
+      Environment:
+        Variables:
+          CATEGORIES_TABLE: !Ref CategoriesTable
+          USERS_TABLE: !Ref UsersTable
+      Events:
+        ApiUpdateProfile:
+          Type: Api
+          Properties:
+            Path: /users/profile
+            RestApiId: !Ref FreelancePlatformApi
+            Method: put
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   ###################################
   # Step Functions
@@ -359,25 +1536,256 @@ Resources:
                   - !Ref UserDeletionCleanupStateMachine
                   - !Ref UserOnboardingStateMachine
 
+  ## =========================
+  ## DynamoDB Backup Selection
+  ## =========================
+  DynamoDBBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref DynamoDBBackupPlan
+      BackupSelection:
+        SelectionName: !Sub "${Environment}-DynamoDB-Tables"
+        IamRoleArn: !GetAtt BackupServiceRole.Arn
+        Resources:
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CategoriesTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${JobsTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ClaimsTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AccountsTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${PaymentRecordsTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CognitoBackupUserPoolTable}"
+          - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${CognitoBackupUserPoolSecondaryTable}"
+
+  JobAdminRouterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${Environment}-JobAdminRouter"
+      CodeUri: admin/
+      Handler: com.freelance.admin.shared.JobAdminRouter::handleRequest
+      Timeout: 60
+      Tracing: Active
+      Environment:
+        Variables:
+          JOBS_TABLE_NAME: !Ref JobsTable
+          CORS_ALLOWED_ORIGINS: !Ref AmplifyUrl
+          CATEGORIES_TABLE_NAME: !Ref CategoriesTable
+          EVENT_BUS_NAME: !Ref JobsEventBus
+          AWS_ACCOUNT_ID: !Ref AWS::AccountId
+          LOG_LEVEL: DEBUG
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref CategoriesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !GetAtt JobsEventBus.Arn
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminListGroupsForUser
+              Resource: !GetAtt UserPool.Arn
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: arn:aws:logs:*:*:*
+
+  ## =========================
+  ## AWS Amplify Hosting
+  ## =========================
+  
+  # IAM Role for Amplify Service
+  AmplifyServiceRole:
+    Type: AWS::IAM::Role
+    Condition: DeployAmplify
+    Properties:
+      RoleName: !Sub "${Environment}-amplify-service-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: amplify.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AmplifyHostingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/amplify/*"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+
+  # Amplify App
+  FreelancePlatformAmplifyApp:
+    Type: AWS::Amplify::App
+    Condition: DeployAmplify
+    Properties:
+      Name: !Sub "${Environment}-freelance-platform-frontend"
+      Description: "Angular frontend for Freelance Platform"
+      Repository: "https://github.com/elitekaycy/job-hub-freelance.git"
+      AccessToken: "{{resolve:secretsmanager:github-access-token:SecretString:token}}"
+      BuildSpec: |
+        version: 1
+        frontend:
+          phases:
+            preBuild:
+              commands:
+                - npm ci
+            build:
+              commands:
+                - npm run build
+          artifacts:
+            baseDirectory: dist/job-hub-freelance
+            files:
+              - '**/*'
+          cache:
+            paths:
+              - node_modules/**/*
+      CustomRules:
+        - Source: "/<*>"
+          Target: "/index.html"
+          Status: "404-200"
+      IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: FreelancePlatform
+
+  # Single Branch that adapts to Environment
+  FreelancePlatformAmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Condition: DeployAmplify
+    Properties:
+      AppId: !GetAtt FreelancePlatformAmplifyApp.AppId
+      BranchName: !If [IsProd, "main", !Ref Environment]
+      Description: !Sub "Branch for ${Environment} environment deployment"
+      EnableAutoBuild: true
+      EnablePullRequestPreview: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Branch
+          Value: !If [IsProd, "main", !Ref Environment]
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, "prod"]
+  DeployAmplify: !Not [!Equals [!Ref Environment, "test"]]
+
 Outputs:
-  FreelancePlatformApiId:
-    Description: "API Gateway REST API ID"
-    Value: !Ref FreelancePlatformApi
-    Export:
-      Name: !Sub "${Environment}-freelance-api-id"
-
-  FreelancePlatformApiRootResourceId:
-    Description: "API Gateway Root Resource ID"
-    Value: !GetAtt FreelancePlatformApi.RootResourceId
-    Export:
-      Name: !Sub "${Environment}-freelance-api-root-id"
-
+  ## Unified API Gateway Output
   FreelancePlatformApiUrl:
-    Description: "API Gateway URL for the Freelance Platform"
+    Description: "Unified Freelance Platform API URL"
     Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
     Export:
       Name: !Sub "${Environment}-freelance-api-url"
 
+  HealthCheckUrl:
+    Description: "Health check endpoint URL"
+    Value: !Sub "https://${FreelancePlatformApi}.execute-api.${AWS::Region}.amazonaws.com/dev/health"
+    Export:
+      Name: !Sub "${Environment}-health-check-url"
+
+  FreelancePlatformApiId:
+    Description: "API Gateway ID"
+    Value: !Ref FreelancePlatformApi
+    Export:
+      Name: !Sub "${Environment}-freelance-api-id"
+
+  ## Table Outputs
+  CategoriesTableName:
+    Description: "Categories DynamoDB Table Name"
+    Value: !Ref CategoriesTable
+    Export:
+      Name: !Sub "${Environment}-categories-table-name"
+
+  CategoriesTableArn:
+    Description: "Categories DynamoDB Table ARN"
+    Value: !GetAtt CategoriesTable.Arn
+    Export:
+      Name: !Sub "${Environment}-categories-table-arn"
+
+  JobsTableName:
+    Description: "Jobs DynamoDB Table Name"
+    Value: !Ref JobsTable
+    Export:
+      Name: !Sub "${Environment}-jobs-table-name"
+
+  JobsTableArn:
+    Description: "Jobs DynamoDB Table ARN"
+    Value: !GetAtt JobsTable.Arn
+    Export:
+      Name: !Sub "${Environment}-jobs-table-arn"
+
+  PaymentRecordsTableName:
+    Description: "Payment Records DynamoDB Table Name"
+    Value: !Ref PaymentRecordsTable
+    Export:
+      Name: !Sub "${Environment}-payment-records-table-name"
+
+  PaymentRecordsTableArn:
+    Description: "Payment Records DynamoDB Table ARN"
+    Value: !GetAtt PaymentRecordsTable.Arn
+    Export:
+      Name: !Sub "${Environment}-payment-records-table-arn"
+
+  ClaimsTableName:
+    Description: "Claims DynamoDB Table Name"
+    Value: !Ref ClaimsTable
+    Export:
+      Name: !Sub "${Environment}-claims-table-name"
+
+  UsersTableName:
+    Description: "Users DynamoDB Table Name"
+    Value: !Ref UsersTableName
+
+  ## EventBridge Outputs
+  JobsEventBusName:
+    Description: "EventBridge Custom Bus for Jobs Events"
+    Value: !Ref JobsEventBus
+    Export:
+      Name: !Sub "${Environment}-jobs-event-bus-name"
+
+  JobsEventBusArn:
+    Description: "EventBridge Custom Bus ARN for Jobs Events"
+    Value: !GetAtt JobsEventBus.Arn
+    Export:
+      Name: !Sub "${Environment}-jobs-event-bus-arn"
+
+  ## Notification System Outputs
+  JobNotificationsTopicArn:
+    Description: "Centralized Job Notifications SNS Topic ARN"
+    Value: !Ref JobNotificationsTopic
+    Export:
+      Name: !Sub "${Environment}-job-notifications-topic-arn"
+
+  ## Job Management System Outputs
+  JobExpiryQueueUrl:
+    Description: "SQS Queue URL for Job Expiry Processing"
+    Value: !Ref JobExpiryQueue
+    Export:
+      Name: !Sub "${Environment}-job-expiry-queue-url"
+
+  JobTimeoutQueueUrl:
+    Description: "SQS Queue URL for Job Timeout Processing"
+    Value: !Ref JobTimeoutQueue
+    Export:
+      Name: !Sub "${Environment}-job-timeout-queue-url"
+
+  ## User Management Outputs
   UserPoolId:
     Description: "Cognito User Pool Id"
     Value: !Ref UserPool
@@ -390,22 +1798,6 @@ Outputs:
     Export:
       Name: !Sub "FreelancePlatform-UserPoolClientId-${Environment}"
 
-  HostedUri:
-    Description: "Cognito Hosted UI URL"
-    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/${Environment}"
-
-  UsersTableName:
-    Description: "Users DynamoDB Table Name"
-    Value: !Ref UsersTable
-    Export:
-      Name: !Sub "FreelancePlatform-UsersTableName-${Environment}"
-
-  AccountsTableName:
-    Description: "Accounts DynamoDB Table Name"
-    Value: !Ref AccountsTable
-    Export:
-      Name: !Sub "FreelancePlatform-AccountsTableName-${Environment}"
-
   UserOnboardingStateMachineArn:
     Description: "ARN of User Onboarding Step Function"
     Value: !Ref UserOnboardingStateMachine
@@ -417,3 +1809,55 @@ Outputs:
     Value: !Ref UserDeletionCleanupStateMachine
     Export:
       Name: !Sub "FreelancePlatform-UserDeletionCleanupSFNArn-${Environment}"
+
+  CognitoHostedUiUrl:
+    Description: "Cognito Hosted UI Login URL"
+    Value: !Sub "https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${UserPoolClient}&response_type=token&scope=email+openid+profile&redirect_uri=https://www.example.com/callback"
+    Export:
+      Name: !Sub "FreelancePlatform-HostedUiUrl-${Environment}"
+
+  ## Backup System Outputs
+  DynamoDBBackupVaultName:
+    Description: "DynamoDB Backup Vault Name"
+    Value: !Ref DynamoDBBackupVault
+    Export:
+      Name: !Sub "${Environment}-dynamodb-backup-vault"
+
+  DynamoDBBackupPlanName:
+    Description: "DynamoDB Backup Plan Name"
+    Value: !Ref DynamoDBBackupPlan
+    Export:
+      Name: !Sub "${Environment}-dynamodb-backup-plan"
+
+  CognitoBackupPrimaryTableName:
+    Description: "Primary Cognito User Pool Backup Table"
+    Value: !Ref CognitoBackupUserPoolTable
+    Export:
+      Name: !Sub "${Environment}-cognito-backup-primary-table"
+
+  CognitoBackupSecondaryTableName:
+    Description: "Secondary Cognito User Pool Backup Table"
+    Value: !Ref CognitoBackupUserPoolSecondaryTable
+    Export:
+      Name: !Sub "${Environment}-cognito-backup-secondary-table"
+
+  CognitoBackupFunctionName:
+    Description: "Cognito Backup Lambda Function Name"
+    Value: !Ref CognitoBackupFunction
+    Export:
+      Name: !Sub "${Environment}-cognito-backup-function"
+
+  ## Amplify Hosting Outputs
+  AmplifyAppId:
+    Condition: DeployAmplify
+    Description: "Amplify App ID"
+    Value: !GetAtt FreelancePlatformAmplifyApp.AppId
+    Export:
+      Name: !Sub "${Environment}-amplify-app-id"
+
+  AmplifyAppUrl:
+    Condition: DeployAmplify
+    Description: "Amplify App URL for environment deployment"
+    Value: !Sub "https://staging-test.${FreelancePlatformAmplifyApp.AppId}.amplifyapp.com"
+    Export:
+      Name: !Sub "${Environment}-amplify-app-url"

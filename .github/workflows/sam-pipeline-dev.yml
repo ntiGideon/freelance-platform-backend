@@ -1,0 +1,72 @@
+name: SAM Pipeline - Develop
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  SAM_TEMPLATE: template.yaml
+  REGION: eu-central-1
+  AMPLIFY_URL: "https://dev.d1syaiq38xs6yn.amplifyapp.com"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: 'maven'
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Cache Maven & SAM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            .aws-sam/cache
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.REGION }}
+          role-to-assume: ${{ secrets.DEV_PIPELINE_ROLE }}
+          role-session-name: sam-pipeline
+          role-duration-seconds: 3600
+
+      - name: Validate SAM template
+        run: sam validate --template ${{ env.SAM_TEMPLATE }}
+
+      - name: Build SAM application
+        run: sam build --template ${{ env.SAM_TEMPLATE }} --parallel --cached
+
+      - name: Deploy to Dev
+        run: |
+          sam deploy \
+            --stack-name freelance-platform-dev \
+            --parameter-overrides \
+              Environment=dev \
+              AmplifyUrl="${{ env.AMPLIFY_URL }}" \
+            --region ${{ env.REGION }} \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --role-arn ${{ secrets.DEV_CLOUDFORMATION_ROLE }} \
+            --s3-bucket aws-sam-cli-managed-dev-pipeline-artifactsbucket-elitekaycy \
+            --no-progressbar

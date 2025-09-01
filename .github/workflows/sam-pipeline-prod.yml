@@ -1,0 +1,100 @@
+name: SAM Pipeline - Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  SAM_TEMPLATE: template.yaml
+  REGION: eu-central-1
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: 'maven'
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Cache Maven & SAM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            .aws-sam/cache
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.REGION }}
+          role-to-assume: ${{ secrets.DEV_PIPELINE_ROLE }}
+          role-session-name: sam-pipeline
+          role-duration-seconds: 3600
+
+      - name: Validate SAM template
+        run: sam validate --template ${{ env.SAM_TEMPLATE }}
+
+      - name: Build SAM application
+        run: sam build --template ${{ env.SAM_TEMPLATE }} --use-container --parallel --cached
+
+      - name: Deploy to Prod
+        run: |
+          sam deploy \
+            --stack-name freelance-platform-prod \
+            --parameter-overrides Environment=prod \
+            --region ${{ env.REGION }} \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --role-arn ${{ secrets.DEV_CLOUDFORMATION_ROLE }} \
+            --s3-bucket aws-sam-cli-managed-prod-pipeline-artifactsbucket-elitekaycy \
+            --no-progressbar
+
+      - name: Get deployment outputs
+        id: outputs
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name freelance-platform-prod \
+            --query 'Stacks[0].Outputs[?OutputKey==`FreelancePlatformApiUrl`].OutputValue' \
+            --output text)
+          
+          AMPLIFY_URL=$(aws cloudformation describe-stacks \
+            --stack-name freelance-platform-prod \
+            --query 'Stacks[0].Outputs[?OutputKey==`AmplifyAppUrl`].OutputValue' \
+            --output text)
+          
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "amplify_url=$AMPLIFY_URL" >> $GITHUB_OUTPUT
+
+      - name: Deployment Summary
+        run: |
+          echo "## 🚀 Production Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** prod" >> $GITHUB_STEP_SUMMARY
+          echo "**Stack Name:** freelance-platform-prod" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** ${{ steps.outputs.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Amplify URL:** ${{ steps.outputs.outputs.amplify_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Amplify Branch Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Amplify is configured to use the \`main\` branch for production**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### CORS Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "The API is configured with dynamic CORS based on AmplifyUrl parameter in the stack" >> $GITHUB_STEP_SUMMARY
