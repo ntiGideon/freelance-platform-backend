@@ -375,6 +375,57 @@ cd jobs && mvn test
 
 ---
 
+## 🗂️ Production Data Setup
+
+### Pre-populated Users
+The production environment includes the following test users:
+
+#### Admin User
+- **Email**: `admin@admin.com`
+- **Password**: `AdminPassword123!`
+- **Role**: ADMIN group with full administrative privileges
+- **Access**: Can manage users, categories, and system settings
+
+#### Test User
+- **Email**: `testing@testing.com`  
+- **Password**: `TestingPassword123!`
+- **Role**: Regular user
+- **Access**: Can post jobs, apply for jobs, and manage profile
+
+### Pre-populated Categories
+The production environment includes 5 categories:
+
+| ID | Name | Description |
+|----|------|-------------|
+| 1 | Web Development | Frontend and backend web development, including React, Angular, Node.js, and full-stack solutions |
+| 2 | Mobile App Development | iOS and Android mobile app development, including React Native, Flutter, and native development |
+| 3 | Graphic Design | Logo design, branding, UI/UX design, and visual content creation |
+| 4 | Data Science & Analytics | Data analysis, machine learning, AI development, and business intelligence solutions |
+| 5 | Digital Marketing | SEO, social media marketing, content marketing, and online advertising campaigns |
+
+### Adding Additional Data
+To add more users or categories to production:
+
+```bash
+# Add user via Cognito
+aws cognito-idp admin-create-user \
+  --user-pool-id eu-central-1_AqkZgBlEE \
+  --username user@example.com \
+  --user-attributes Name=email,Value=user@example.com Name=email_verified,Value=true
+
+# Add category via DynamoDB  
+aws dynamodb put-item \
+  --table-name prod-CategoriesTable \
+  --item '{
+    "categoryId": {"S": "6"},
+    "name": {"S": "Category Name"},
+    "description": {"S": "Category description"},
+    "isActive": {"BOOL": true}
+  }'
+```
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
