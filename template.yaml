@@ -34,7 +34,7 @@ Parameters:
 
   AmplifyUrl:
     Type: String
-    Default: "https://dev.d1syaiq38xs6yn.amplifyapp.com"
+    Default: "https://main.df4ie1xl17v17.amplifyapp.com"
     Description: "Full Amplify URL for CORS configuration"
 
 Globals:
