@@ -1858,6 +1858,9 @@ Outputs:
   AmplifyAppUrl:
     Condition: DeployAmplify
     Description: "Amplify App URL for environment deployment"
-    Value: !Sub "https://staging-test.${FreelancePlatformAmplifyApp.AppId}.amplifyapp.com"
+    Value: !Sub 
+      - "https://${BranchName}.${AppId}.amplifyapp.com"
+      - BranchName: !If [IsProd, "main", !Ref Environment]
+        AppId: !GetAtt FreelancePlatformAmplifyApp.AppId
     Export:
       Name: !Sub "${Environment}-amplify-app-url"
