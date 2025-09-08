@@ -7,10 +7,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.freelance.payment.events.PaymentCompletedEvent;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.*;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
@@ -130,15 +127,21 @@ public class PaymentProcessorHandler implements RequestHandler<ScheduledEvent, V
 
     private boolean paymentExists(String jobId) {
         try {
-            GetItemRequest request = GetItemRequest.builder()
+            QueryRequest request = QueryRequest.builder()
                     .tableName(paymentRecordsTable)
-                    .key(Map.of("jobId", AttributeValue.builder().s(jobId).build()))
+                    .indexName("JobIdIndex") // Use the GSI
+                    .keyConditionExpression("jobId = :jobId")
+                    .expressionAttributeValues(
+                            Map.of(":jobId", AttributeValue.builder().s(jobId).build()))
+                    .limit(1)
                     .build();
-            return dynamoDbClient.getItem(request).hasItem();
+
+            return dynamoDbClient.query(request).count() > 0;
         } catch (Exception e) {
             throw new RuntimeException("Failed to check payment existence for job: " + jobId, e);
         }
     }
+
 
     private void updateAccountBalance(JobApprovedEvent event, Context context) {
         if (accountsTable == null || accountsTable.isBlank()) {
