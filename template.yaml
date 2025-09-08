@@ -927,7 +927,7 @@ Resources:
       Handler: com.freelance.payment.notifications.PaymentNotificationHandler::handleRequest
       Environment:
         Variables:
-          USERS_TABLE_NAME: !Ref UsersTableName
+          USERS_TABLE_NAME: !Ref UsersTable
           FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
@@ -941,7 +941,7 @@ Resources:
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
-              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+              Resource: !GetAtt UsersTable.Arn
         - Statement:
             - Effect: Allow
               Action:
