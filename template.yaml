@@ -708,7 +708,7 @@ Resources:
                 - dynamodb:Query
               Resource:
                 - !GetAtt PaymentRecordsTable.Arn
-                - !GetAtt PaymentRecordsTable.Arn/index/JobIdIndex
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${PaymentRecordsTable}/index/JobIdIndex"
                 - !GetAtt AccountsTable.Arn
             - Effect: Allow
               Action:
