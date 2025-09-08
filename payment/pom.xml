@@ -17,7 +17,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <aws.lambda.java.version>1.2.3</aws.lambda.java.version>
-        <aws.sdk.version>2.26.23</aws.sdk.version> <!-- Latest stable version as of Sep 2025 -->
+        <aws.sdk.version>2.26.23</aws.sdk.version> <!-- Consistent version for all AWS SDK modules -->
         <jackson.version>2.17.2</jackson.version>
         <junit.version>5.10.0</junit.version>
         <slf4j.version>2.0.9</slf4j.version>
@@ -39,53 +39,55 @@
             <version>3.11.3</version>
         </dependency>
 
-        <!-- AWS SDK v2 - Core (required for AwsClient) -->
+        <!-- AWS SDK v2 - BOM (Bill of Materials) for consistent versions -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>bom</artifactId>
+            <version>${aws.sdk.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- AWS SDK v2 - Core -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>aws-core</artifactId>
-            <version>${aws.sdk.version}</version>
         </dependency>
 
         <!-- AWS SDK v2 - DynamoDB -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>dynamodb</artifactId>
-            <version>${aws.sdk.version}</version>
         </dependency>
 
         <!-- AWS SDK v2 - SNS -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sns</artifactId>
-            <version>${aws.sdk.version}</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/cognitoidentityprovider -->
+        <!-- AWS SDK v2 - Cognito Identity Provider -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>cognitoidentityprovider</artifactId>
-            <version>2.33.4</version>
         </dependency>
 
         <!-- AWS SDK v2 - SES -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ses</artifactId>
-            <version>${aws.sdk.version}</version>
         </dependency>
 
         <!-- AWS SDK v2 - SQS -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sqs</artifactId>
-            <version>${aws.sdk.version}</version>
         </dependency>
 
         <!-- AWS SDK v2 - Step Functions -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sfn</artifactId>
-            <version>${aws.sdk.version}</version>
         </dependency>
 
         <!-- Jackson for JSON processing -->
@@ -138,6 +140,18 @@
         </dependency>
     </dependencies>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws.sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <build>
         <plugins>
             <plugin>
@@ -146,14 +160,14 @@
                 <version>3.11.0</version>
                 <configuration>
                     <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
+                    <target>${maven.compiler.target</target>
                 </configuration>
             </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.0</version> <!-- Updated to latest version -->
+                <version>3.5.0</version>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
                     <transformers>
