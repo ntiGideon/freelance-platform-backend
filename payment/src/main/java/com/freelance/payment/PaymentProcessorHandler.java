@@ -153,10 +153,11 @@ public class PaymentProcessorHandler implements RequestHandler<ScheduledEvent, V
             dynamoDbClient.updateItem(UpdateItemRequest.builder()
                     .tableName(accountsTable)
                     .key(Map.of("userId", AttributeValue.builder().s(event.claimerId()).build()))
-                    .updateExpression("SET balance = balance + :amount")
-                    .expressionAttributeValues(
-                            Map.of(":amount", AttributeValue.builder().n(event.payAmount().toString()).build())
-                    )
+                    .updateExpression("SET balance = if_not_exists(balance, :zero) + :amount")
+                    .expressionAttributeValues(Map.of(
+                            ":zero", AttributeValue.builder().n("0").build(),
+                            ":amount", AttributeValue.builder().n(event.payAmount().toString()).build()
+                    ))
                     .build());
             context.getLogger().log(String.format(
                     "{\"event\":\"AccountBalanceUpdated\",\"userId\":\"%s\",\"amount\":\"%s\"}",
@@ -168,6 +169,7 @@ public class PaymentProcessorHandler implements RequestHandler<ScheduledEvent, V
             throw new RuntimeException("Failed to update account balance for user: " + event.claimerId(), e);
         }
     }
+
 
     private void sendPaymentNotification(String paymentId, JobApprovedEvent event, Context context) {
         if (notificationTopicArn == null || notificationTopicArn.isBlank()) {
