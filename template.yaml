@@ -696,17 +696,6 @@ Resources:
         Variables:
           PAYMENT_RECORDS_TABLE: !Ref PaymentRecordsTable
           ACCOUNTS_TABLE: !Ref AccountsTable
-          NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
-      Events:
-        PaymentTrigger:
-          Type: EventBridgeRule
-          Properties:
-            EventBusName: !Ref JobsEventBus
-            Pattern:
-              source:
-                - "jobs-service"
-              detail-type:
-                - "job.approved"
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -715,19 +704,17 @@ Resources:
                 - dynamodb:PutItem
                 - dynamodb:UpdateItem
                 - dynamodb:GetItem
-                - dynamodb:Query
               Resource:
                 - !GetAtt PaymentRecordsTable.Arn
-                - !Sub "${PaymentRecordsTable.Arn}/index/JobIdIndex"
                 - !GetAtt AccountsTable.Arn
-            - Effect: Allow
-              Action:
-                - sns:Publish
-              Resource: !Ref NotificationTopic
-            - Effect: Allow
-              Action:
-                - lambda:InvokeFunction
-              Resource: !GetAtt PaymentProcessorFunction.Arn
+      Events:
+        PaymentTrigger:
+          Type: CloudWatchEvent
+          Properties:
+            EventBusName: !Ref JobsEventBus
+            Pattern:
+              source: [ "jobs-service" ]
+              detail-type: [ "job.approved" ]
 
 
   ## =========================
