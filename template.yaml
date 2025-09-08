@@ -696,6 +696,7 @@ Resources:
         Variables:
           PAYMENT_RECORDS_TABLE: !Ref PaymentRecordsTable
           ACCOUNTS_TABLE: !Ref AccountsTable
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -704,9 +705,14 @@ Resources:
                 - dynamodb:PutItem
                 - dynamodb:UpdateItem
                 - dynamodb:GetItem
+                - dynamodb:Query
               Resource:
                 - !GetAtt PaymentRecordsTable.Arn
                 - !GetAtt AccountsTable.Arn
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         PaymentTrigger:
           Type: CloudWatchEvent
