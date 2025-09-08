@@ -70,16 +70,17 @@ public class PaymentNotificationHandler implements RequestHandler<SNSEvent, Void
     private void handlePaymentCompletedNotification(String message, Context context) throws Exception {
         PaymentCompletedEvent event = objectMapper.readValue(message, PaymentCompletedEvent.class);
 
-        // Send notification to the user who received payment
-        UserInfo userInfo = getUserInfo(event.userId());
+        UserInfo userInfo = getUserInfo(event.userId(), context);
         if (userInfo != null && userInfo.email() != null) {
             String subject = createPaymentCompletedSubject(event);
             String body = createPaymentCompletedBody(event);
             sendEmail(userInfo.email(), userInfo.name(), subject, body, context);
+        } else {
+            context.getLogger().log("Cannot send notification - user info not available for: " + event.userId());
         }
 
-        // Optionally send notification to job owner
-        UserInfo ownerInfo = getUserInfo(event.ownerId());
+        // Similarly for owner
+        UserInfo ownerInfo = getUserInfo(event.ownerId(), context);
         if (ownerInfo != null && ownerInfo.email() != null) {
             String subject = createPaymentCompletedOwnerSubject(event);
             String body = createPaymentCompletedOwnerBody(event);
@@ -87,7 +88,7 @@ public class PaymentNotificationHandler implements RequestHandler<SNSEvent, Void
         }
     }
 
-    private UserInfo getUserInfo(String userId) {
+    private UserInfo getUserInfo(String userId, Context context) { // ← Add Context parameter
         if (usersTableName == null) {
             throw new RuntimeException("USERS_TABLE_NAME environment variable is not set");
         }
@@ -99,21 +100,26 @@ public class PaymentNotificationHandler implements RequestHandler<SNSEvent, Void
                     .build();
 
             GetItemResponse response = dynamoDbClient.getItem(getItemRequest);
-            if (response.hasItem()) {
-                Map<String, AttributeValue> item = response.item();
-                String email = getStringValue(item, "email");
-                String name = getStringValue(item, "name");
 
-                if (email == null) {
-                    throw new RuntimeException("User " + userId + " has no email address");
-                }
-
-                return new UserInfo(userId, email, name);
-            } else {
-                throw new RuntimeException("User not found: " + userId);
+            if (!response.hasItem()) {
+                context.getLogger().log("User not found in table: " + userId);
+                return null; // ← Return null instead of throwing exception
             }
+
+            Map<String, AttributeValue> item = response.item();
+            String email = getStringValue(item, "email");
+            String name = getStringValue(item, "name");
+
+            if (email == null) {
+                context.getLogger().log("User found but no email: " + userId);
+                return null;
+            }
+
+            return new UserInfo(userId, email, name);
+
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve user info for " + userId + ": " + e.getMessage(), e);
+            context.getLogger().log("Error retrieving user info: " + e.getMessage());
+            return null; // ← Return null instead of throwing
         }
     }
 
