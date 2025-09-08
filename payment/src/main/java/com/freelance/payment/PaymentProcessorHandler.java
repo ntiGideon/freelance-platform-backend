@@ -3,6 +3,7 @@ package com.freelance.payment;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.ScheduledEvent;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.freelance.payment.events.PaymentCompletedEvent;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -29,7 +30,7 @@ public class PaymentProcessorHandler implements RequestHandler<ScheduledEvent, V
     public PaymentProcessorHandler() {
         this.dynamoDbClient = DynamoDbClient.create();
         this.snsClient = SnsClient.create();
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.paymentRecordsTable = System.getenv("PAYMENT_RECORDS_TABLE");
         this.accountsTable = System.getenv("ACCOUNTS_TABLE");
         this.notificationTopicArn = System.getenv("NOTIFICATION_TOPIC_ARN");

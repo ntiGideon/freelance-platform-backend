@@ -9,6 +9,7 @@ public record JobApprovedEvent(
         @JsonProperty("jobId") String jobId,
         @JsonProperty("ownerId") String ownerId,
         @JsonProperty("claimerId") String claimerId,
+        @JsonProperty("claimerEmail") String claimerEmail, // Added to match event structure
         @JsonProperty("categoryId") String categoryId,
         @JsonProperty("jobName") String jobName,
         @JsonProperty("payAmount") BigDecimal payAmount,
@@ -18,10 +19,11 @@ public record JobApprovedEvent(
             String jobId,
             String ownerId,
             String claimerId,
+            String claimerEmail,
             String categoryId,
             String jobName,
             BigDecimal payAmount,
             String approvedAt) {
-        this("job.approved", jobId, ownerId, claimerId, categoryId, jobName, payAmount, approvedAt);
+        this("job.approved", jobId, ownerId, claimerId, claimerEmail, categoryId, jobName, payAmount, approvedAt);
     }
 }
