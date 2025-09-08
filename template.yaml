@@ -709,6 +709,10 @@ Resources:
               Resource:
                 - !GetAtt PaymentRecordsTable.Arn
                 - !GetAtt AccountsTable.Arn
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         PaymentTrigger:
           Type: CloudWatchEvent
