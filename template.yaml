@@ -888,7 +888,7 @@ Resources:
       Environment:
         Variables:
           USER_POOL_ID: !Ref UserPool
-          FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
+          FROM_EMAIL_ADDRESS: "dicksonanyaele1234@gmail.com"
       Policies:
         - Statement:
             - Effect: Allow
@@ -921,7 +921,7 @@ Resources:
       Environment:
         Variables:
           USERS_TABLE_NAME: !Ref UsersTableName
-          FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
+          FROM_EMAIL_ADDRESS: "dicksonanyaele1234@gmail.com"
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
