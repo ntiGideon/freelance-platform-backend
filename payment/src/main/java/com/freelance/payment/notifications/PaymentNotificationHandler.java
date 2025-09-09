@@ -10,6 +10,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminGetUserRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminGetUserResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
@@ -25,16 +30,16 @@ import software.amazon.awssdk.services.ses.model.SendEmailResponse;
 public class PaymentNotificationHandler implements RequestHandler<SNSEvent, Void> {
 
     private final SesClient sesClient;
-    private final DynamoDbClient dynamoDbClient;
+    private final CognitoIdentityProviderClient cognitoClient;
     private final ObjectMapper objectMapper;
-    private final String usersTableName;
+    private final String userPoolId;
     private final String fromEmail;
 
     public PaymentNotificationHandler() {
         this.sesClient = SesClient.create();
-        this.dynamoDbClient = DynamoDbClient.create();
+        this.cognitoClient = CognitoIdentityProviderClient.create();
         this.objectMapper = new ObjectMapper();
-        this.usersTableName = System.getenv("USERS_TABLE_NAME");
+        this.userPoolId = System.getenv("USER_POOL_ID");
         this.fromEmail = System.getenv("FROM_EMAIL_ADDRESS");
     }
 
@@ -70,16 +75,17 @@ public class PaymentNotificationHandler implements RequestHandler<SNSEvent, Void
     private void handlePaymentCompletedNotification(String message, Context context) throws Exception {
         PaymentCompletedEvent event = objectMapper.readValue(message, PaymentCompletedEvent.class);
 
-        // Send notification to the user who received payment
-        UserInfo userInfo = getUserInfo(event.userId());
+        UserInfo userInfo = getUserInfo(event.userId(), context);
         if (userInfo != null && userInfo.email() != null) {
             String subject = createPaymentCompletedSubject(event);
             String body = createPaymentCompletedBody(event);
             sendEmail(userInfo.email(), userInfo.name(), subject, body, context);
+        } else {
+            context.getLogger().log("Cannot send notification - user info not available for: " + event.userId());
         }
 
-        // Optionally send notification to job owner
-        UserInfo ownerInfo = getUserInfo(event.ownerId());
+        // Similarly for owner
+        UserInfo ownerInfo = getUserInfo(event.ownerId(), context);
         if (ownerInfo != null && ownerInfo.email() != null) {
             String subject = createPaymentCompletedOwnerSubject(event);
             String body = createPaymentCompletedOwnerBody(event);
@@ -87,33 +93,49 @@ public class PaymentNotificationHandler implements RequestHandler<SNSEvent, Void
         }
     }
 
-    private UserInfo getUserInfo(String userId) {
-        if (usersTableName == null) {
-            throw new RuntimeException("USERS_TABLE_NAME environment variable is not set");
+    private UserInfo getUserInfo(String userId, Context context) {
+        if (userPoolId == null) {
+            context.getLogger().log("USER_POOL_ID environment variable is not set");
+            return null;
         }
 
         try {
-            GetItemRequest getItemRequest = GetItemRequest.builder()
-                    .tableName(usersTableName)
-                    .key(Map.of("userId", AttributeValue.builder().s(userId).build()))
+            AdminGetUserRequest getUserRequest = AdminGetUserRequest.builder()
+                    .userPoolId(userPoolId)
+                    .username(userId)
                     .build();
 
-            GetItemResponse response = dynamoDbClient.getItem(getItemRequest);
-            if (response.hasItem()) {
-                Map<String, AttributeValue> item = response.item();
-                String email = getStringValue(item, "email");
-                String name = getStringValue(item, "name");
+            AdminGetUserResponse response = cognitoClient.adminGetUser(getUserRequest);
 
-                if (email == null) {
-                    throw new RuntimeException("User " + userId + " has no email address");
+            // Extract email and name from Cognito user attributes
+            String email = null;
+            String givenName = null;
+            String familyName = null;
+
+            for (AttributeType attribute : response.userAttributes()) {
+                switch (attribute.name()) {
+                    case "email" -> email = attribute.value();
+                    case "given_name" -> givenName = attribute.value();
+                    case "family_name" -> familyName = attribute.value();
                 }
-
-                return new UserInfo(userId, email, name);
-            } else {
-                throw new RuntimeException("User not found: " + userId);
             }
+
+            if (email == null) {
+                context.getLogger().log("User " + userId + " has no email address in Cognito");
+                return null;
+            }
+
+            // Construct display name
+            String displayName = "User";
+            if (givenName != null) {
+                displayName = familyName != null ? givenName + " " + familyName : givenName;
+            }
+
+            return new UserInfo(userId, email, displayName);
+
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve user info for " + userId + ": " + e.getMessage(), e);
+            context.getLogger().log("Failed to retrieve user info from Cognito for " + userId + ": " + e.getMessage());
+            return null;
         }
     }
 

@@ -696,6 +696,7 @@ Resources:
         Variables:
           PAYMENT_RECORDS_TABLE: !Ref PaymentRecordsTable
           ACCOUNTS_TABLE: !Ref AccountsTable
+          NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -704,9 +705,15 @@ Resources:
                 - dynamodb:PutItem
                 - dynamodb:UpdateItem
                 - dynamodb:GetItem
+                - dynamodb:Query
               Resource:
                 - !GetAtt PaymentRecordsTable.Arn
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${PaymentRecordsTable}/index/JobIdIndex"
                 - !GetAtt AccountsTable.Arn
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Ref JobNotificationsTopic
       Events:
         PaymentTrigger:
           Type: CloudWatchEvent
@@ -922,6 +929,7 @@ Resources:
         Variables:
           USERS_TABLE_NAME: !Ref UsersTableName
           FROM_EMAIL_ADDRESS: "dicksonanyaele1234@gmail.com"
+          USER_POOL_ID: !Ref UserPool
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
@@ -933,8 +941,8 @@ Resources:
         - Statement:
             - Effect: Allow
               Action:
-                - dynamodb:GetItem
-              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+                - cognito-idp:AdminGetUser  # ← Add Cognito permission
+              Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}"
         - Statement:
             - Effect: Allow
               Action:
