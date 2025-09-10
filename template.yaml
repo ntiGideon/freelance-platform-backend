@@ -490,6 +490,7 @@ Resources:
                 Action:
                   - dynamodb:DescribeTable
                   - dynamodb:ListTagsOfResource
+                  - dynamodb:StartAwsBackupJob
                 Resource: "*"
               - Effect: Allow
                 Action:
@@ -945,8 +946,8 @@ Resources:
         - Statement:
             - Effect: Allow
               Action:
-                - sns:Publish
-              Resource: !Ref JobNotificationsTopic
+                - dynamodb:GetItem
+              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
       Events:
         PaymentNotificationTopic:
           Type: SNS
