@@ -901,7 +901,7 @@ Resources:
       Environment:
         Variables:
           USER_POOL_ID: !Ref UserPool
-          FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
+          FROM_EMAIL_ADDRESS: "dicksonanyaele1234@gmail.com"
       Policies:
         - Statement:
             - Effect: Allow
@@ -934,7 +934,7 @@ Resources:
       Environment:
         Variables:
           USERS_TABLE_NAME: !Ref UsersTableName
-          FROM_EMAIL_ADDRESS: "noreply@freelanceplatform.com"
+          FROM_EMAIL_ADDRESS: "dicksonanyaele1234@gmail.com"
           NOTIFICATION_TOPIC_ARN: !Ref JobNotificationsTopic
       Policies:
         - Statement:
@@ -1871,6 +1871,9 @@ Outputs:
   AmplifyAppUrl:
     Condition: DeployAmplify
     Description: "Amplify App URL for environment deployment"
-    Value: !Sub "https://staging-test.${FreelancePlatformAmplifyApp.AppId}.amplifyapp.com"
+    Value: !Sub 
+      - "https://${BranchName}.${AppId}.amplifyapp.com"
+      - BranchName: !If [IsProd, "main", !Ref Environment]
+        AppId: !GetAtt FreelancePlatformAmplifyApp.AppId
     Export:
       Name: !Sub "${Environment}-amplify-app-url"

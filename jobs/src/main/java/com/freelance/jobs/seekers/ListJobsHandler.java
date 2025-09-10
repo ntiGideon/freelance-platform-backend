@@ -91,7 +91,7 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
             
             switch (type.toLowerCase()) {
                 case "available":
-                    jobs = getAvailableJobs(context);
+                    jobs = getAvailableJobs(seekerId, context);
                     break;
                 case "claimed":
                     jobs = getClaimedJobs(seekerId, context);
@@ -100,12 +100,12 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
                     jobs = getCompletedJobs(seekerId, context);
                     break;
                 case "all":
-                    jobs.addAll(getAvailableJobs(context));
+                    jobs.addAll(getAvailableJobs(seekerId, context));
                     jobs.addAll(getClaimedJobs(seekerId, context));
                     jobs.addAll(getCompletedJobs(seekerId, context));
                     break;
                 default:
-                    jobs = getAvailableJobs(context);
+                    jobs = getAvailableJobs(seekerId, context);
             }
             
             // Apply status filter if provided
@@ -124,7 +124,7 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
         }
     }
     
-    private List<JobEntity> getAvailableJobs(Context context) {
+    private List<JobEntity> getAvailableJobs(String seekerId, Context context) {
         try {
             // Use GSI to query jobs by status = "open"
             QueryRequest queryRequest = QueryRequest.builder()
@@ -140,7 +140,10 @@ public class ListJobsHandler implements RequestHandler<APIGatewayProxyRequestEve
 
             for (Map<String, AttributeValue> item : response.items()) {
                 JobEntity job = JobEntityMapper.mapToJobEntity(item);
-                jobs.add(job);
+                // Filter out jobs owned by the current seeker (users can't see their own jobs as available)
+                if (!seekerId.equals(job.ownerId())) {
+                    jobs.add(job);
+                }
             }
 
             // Filter out expired jobs

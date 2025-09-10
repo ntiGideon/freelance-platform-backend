@@ -8,6 +8,7 @@ on:
 env:
   SAM_TEMPLATE: template.yaml
   REGION: eu-central-1
+  AMPLIFY_URL: "https://main.df4ie1xl17v17.amplifyapp.com"
 
 permissions:
   id-token: write
@@ -45,7 +46,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.REGION }}
-          role-to-assume: ${{ secrets.DEV_PIPELINE_ROLE }}
+          role-to-assume: ${{ secrets.PROD_PIPELINE_ROLE }}
           role-session-name: sam-pipeline
           role-duration-seconds: 3600
 
@@ -59,12 +60,14 @@ jobs:
         run: |
           sam deploy \
             --stack-name freelance-platform-prod \
-            --parameter-overrides Environment=prod \
+            --parameter-overrides \
+              Environment=prod \
+              AmplifyUrl="${{ env.AMPLIFY_URL }}" \
             --region ${{ env.REGION }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
             --capabilities CAPABILITY_NAMED_IAM \
-            --role-arn ${{ secrets.DEV_CLOUDFORMATION_ROLE }} \
+            --role-arn ${{ secrets.PROD_CLOUDFORMATION_ROLE }} \
             --s3-bucket aws-sam-cli-managed-prod-pipeline-artifactsbucket-elitekaycy \
             --no-progressbar
 
